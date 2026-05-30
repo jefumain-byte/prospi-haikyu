@@ -1,52 +1,64 @@
 @echo off
-chcp 65001 >nul
 cd /d "%~dp0"
-
-title GitHub へ push
+title GitHub Push
 
 echo ================================
-echo   GitHub へ push
+echo   GitHub Push - prospi-haikyu
 echo ================================
 echo.
 
+where git >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] Git is not installed.
+  echo Install from https://git-scm.com/download/win
+  pause
+  exit /b 1
+)
+
 where gh >nul 2>&1
 if errorlevel 1 (
-  echo [エラー] GitHub CLI ^(gh^) が見つかりません。
+  echo [ERROR] GitHub CLI ^(gh^) is not installed.
+  echo Install from https://cli.github.com/
   pause
   exit /b 1
 )
 
 gh auth status >nul 2>&1
 if errorlevel 1 (
-  echo GitHub にログインしてください。
-  echo ブラウザが開いたら、表示されたコードを入力します。
-  echo.
+  echo Login to GitHub in your browser...
   gh auth login --hostname github.com --git-protocol https --web
   if errorlevel 1 (
-    echo [エラー] ログインに失敗しました。
+    echo [ERROR] Login failed.
     pause
     exit /b 1
   )
 )
 
-echo.
-echo GitHub にリポジトリを作成して push します...
-echo リポジトリ名: prospi-haikyu
-echo.
+set GIT_AUTHOR_NAME=jefumain-byte
+set GIT_COMMITTER_NAME=jefumain-byte
+set GIT_AUTHOR_EMAIL=jefumain-byte@users.noreply.github.com
+set GIT_COMMITTER_EMAIL=jefumain-byte@users.noreply.github.com
 
-gh repo create prospi-haikyu --public --source=. --remote=origin --push
+echo Adding files...
+git add .
 
+echo Committing...
+git commit -m "Update app with cloud sync and login"
+if errorlevel 1 (
+  echo No new changes to commit, or commit failed.
+)
+
+echo Pushing to origin main...
+git push origin main
 if errorlevel 1 (
   echo.
-  echo リポジトリが既にある場合は、次を実行してください:
-  echo   git remote add origin https://github.com/あなたのユーザー名/prospi-haikyu.git
-  echo   git push -u origin main
+  echo [ERROR] Push failed.
+  echo Try: git push -u origin main
   pause
   exit /b 1
 )
 
 echo.
-echo 完了しました！
-echo Vercel でこのリポジトリを Import してください。
+echo Done! Check Vercel for auto-deploy.
 echo.
 pause

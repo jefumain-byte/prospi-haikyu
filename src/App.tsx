@@ -4,18 +4,21 @@ import { HistoryPanel } from './components/HistoryPanel'
 import { MatchupPanel } from './components/MatchupPanel'
 import { PitchForm } from './components/PitchForm'
 import { PitchSideToggle } from './components/PitchSideToggle'
+import { SyncPanel } from './components/SyncPanel'
 import { StatsPanel } from './components/StatsPanel'
 import { StrikeZone } from './components/StrikeZone'
+import { useCloudSync } from './hooks/useCloudSync'
 import { updateCount } from './countLogic'
 import { getZoneLabel } from './constants'
-import { createSession, loadAppData, saveAppData } from './storage'
-import type { AppData, Count, Handedness, PitchRecord, PitchResult, PitchSide, PitchType, TabId } from './types'
+import { createSession } from './storage'
+import type { Count, Handedness, PitchRecord, PitchResult, PitchSide, PitchType, TabId } from './types'
 import './App.css'
 
 const initialCount: Count = { balls: 0, strikes: 0, outs: 0 }
 
 function App() {
-  const [data, setData] = useState<AppData>(() => loadAppData())
+  const { data, setData, ready, loggedInUser, syncStatus, authMessage, login, logout, uploadNow, downloadNow, authConfigured, cloudEnabled } =
+    useCloudSync()
   const [tab, setTab] = useState<TabId>('record')
   const [count, setCount] = useState<Count>(initialCount)
   const [selectedRow, setSelectedRow] = useState<number | null>(null)
@@ -49,19 +52,16 @@ function App() {
   ])
 
   useEffect(() => {
-    saveAppData(data)
-  }, [data])
-
-  useEffect(() => {
+    if (!ready) return
     if (!data.activeSessionId && data.sessions.length === 0) {
       const session = createSession('相手投手')
       setData({ sessions: [session], activeSessionId: session.id })
     } else if (!data.activeSessionId && data.sessions.length > 0) {
       setData((prev) => ({ ...prev, activeSessionId: prev.sessions[0].id }))
     }
-  }, [data.activeSessionId, data.sessions.length])
+  }, [data.activeSessionId, data.sessions.length, ready])
 
-  const updateData = (updater: (prev: AppData) => AppData) => {
+  const updateData = (updater: (prev: typeof data) => typeof data) => {
     setData((prev) => updater(prev))
   }
 
@@ -196,6 +196,14 @@ function App() {
     setShowForm(false)
   }
 
+  if (!ready) {
+    return (
+      <div className="app loading-screen">
+        <p>記録を読み込み中…</p>
+      </div>
+    )
+  }
+
   return (
     <div className="app">
       <header className="app-header panel-card">
@@ -205,6 +213,18 @@ function App() {
         </div>
         <div className="pitch-badge">{pitches.length}球</div>
       </header>
+
+      <SyncPanel
+        loggedInUser={loggedInUser}
+        syncStatus={syncStatus}
+        cloudEnabled={cloudEnabled}
+        authConfigured={authConfigured}
+        authMessage={authMessage}
+        onLogin={login}
+        onLogout={logout}
+        onUpload={() => void uploadNow()}
+        onDownload={() => void downloadNow()}
+      />
 
       <section className="session-bar panel-card">
         <div className="session-top">

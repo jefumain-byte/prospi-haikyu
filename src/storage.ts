@@ -28,7 +28,7 @@ function migrateGridRows(data: AppData): AppData {
   }
 }
 
-function syncStoredData(data: AppData): AppData {
+export function syncStoredData(data: AppData): AppData {
   return {
     ...data,
     sessions: data.sessions.map((session) => ({
@@ -48,7 +48,7 @@ function syncStoredData(data: AppData): AppData {
   }
 }
 
-export function loadAppData(): AppData {
+export function loadLocalAppData(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
@@ -56,6 +56,7 @@ export function loadAppData(): AppData {
       return syncStoredData({
         sessions: parsed.sessions ?? [],
         activeSessionId: parsed.activeSessionId ?? null,
+        updatedAt: parsed.updatedAt,
       })
     }
 
@@ -63,7 +64,7 @@ export function loadAppData(): AppData {
     if (rawV1) {
       const parsed = JSON.parse(rawV1) as AppData
       const migrated = migrateGridRows(parsed)
-      saveAppData(migrated)
+      saveLocalAppData(migrated)
       localStorage.removeItem(STORAGE_KEY_V1)
       return migrated
     }
@@ -74,8 +75,18 @@ export function loadAppData(): AppData {
   }
 }
 
-export function saveAppData(data: AppData): void {
+export function saveLocalAppData(data: AppData): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+}
+
+/** @deprecated use loadLocalAppData */
+export function loadAppData(): AppData {
+  return loadLocalAppData()
+}
+
+/** @deprecated use saveLocalAppData */
+export function saveAppData(data: AppData): void {
+  saveLocalAppData(data)
 }
 
 export function createSession(pitcherName: string, defaultPitchSide: PitchSide = 'opponent'): GameSession {

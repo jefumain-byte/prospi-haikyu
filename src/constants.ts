@@ -1,6 +1,7 @@
 import type { Handedness, PitchResult, PitchSide, PitchType, ZoneCell } from './types'
 
 export const STORAGE_KEY = 'prospi-haikyu-data-v2'
+export const SYNC_ID_KEY = 'prospi-sync-id-v1'
 
 export const PITCH_SIDES: { id: PitchSide; label: string }[] = [
   { id: 'opponent', label: '相手' },

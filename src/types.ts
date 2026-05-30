@@ -75,6 +75,7 @@ export interface GameSession {
 export interface AppData {
   sessions: GameSession[]
   activeSessionId: string | null
+  updatedAt?: number
 }
 
 export type TabId = 'record' | 'history' | 'stats'

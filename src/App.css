@@ -47,6 +47,117 @@
   text-align: center;
 }
 
+.loading-screen {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  color: var(--text-muted);
+}
+
+.sync-panel {
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.sync-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sync-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.sync-status {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.sync-status.status-synced {
+  color: #86efac;
+}
+
+.sync-status.status-syncing,
+.sync-status.status-loading {
+  color: #93c5fd;
+}
+
+.sync-status.status-error {
+  color: #fca5a5;
+}
+
+.sync-id {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.sync-id code {
+  color: #dbeafe;
+}
+
+.sync-copy-msg {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: #86efac;
+}
+
+.sync-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.sync-hint.warn {
+  color: #fde68a;
+}
+
+.sync-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.sync-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sync-field span {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.sync-logged-in {
+  margin-top: 10px;
+}
+
+.sync-user {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.sync-user code {
+  color: #bbf7d0;
+}
+
+.sync-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .session-bar {
   display: grid;
   grid-template-columns: 1fr;
