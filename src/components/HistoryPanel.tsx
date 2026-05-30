@@ -4,6 +4,7 @@ import { SideFilterToggle, type SideFilter } from './SideFilterToggle'
 import type { PitchRecord, PitchResult } from '../types'
 
 interface HistoryPanelProps {
+  batterLabel: string
   pitches: PitchRecord[]
   onUndo: () => void
 }
@@ -22,7 +23,7 @@ function resultClass(result: PitchResult): string {
   return 'result-out'
 }
 
-export function HistoryPanel({ pitches, onUndo }: HistoryPanelProps) {
+export function HistoryPanel({ batterLabel, pitches, onUndo }: HistoryPanelProps) {
   const [filterSide, setFilterSide] = useState<SideFilter>('all')
 
   const filteredPitches = useMemo(() => {
@@ -46,7 +47,7 @@ export function HistoryPanel({ pitches, onUndo }: HistoryPanelProps) {
     <div className="history-panel panel-card">
       <div className="panel-head">
         <div>
-          <h2>投球履歴</h2>
+          <h2>{batterLabel} の履歴</h2>
           <p className="panel-sub">
             {filteredPitches.length} 球
             {filterSide !== 'all' ? `（${getPitchSideLabel(filterSide)}）` : ''}

@@ -83,6 +83,39 @@ git push
 - 無料プランで HTTPS 対応済み
 - `vercel.json` にビルド設定を記載済みです
 
+## 環境変数（.env）
+
+### 1. .env ファイルを作る
+
+**`setup-env.bat`** をダブルクリック（または `npm run setup:env`）
+
+`.env.example` から `.env` が作成され、メモ帳が開きます。次を埋めます:
+
+```
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_xxxxx
+VITE_SYNC_USER=ログインID
+VITE_SYNC_PASSWORD=パスワード
+```
+
+### 2. Vercel にインポート
+
+**方法A（画面・おすすめ）**
+
+1. Vercel → プロジェクト → **Settings → Environment Variables**
+2. **Import .env** をクリック
+3. 作成した **`.env` ファイル** を選択（または中身を貼り付け）
+4. **Deployments → Redeploy**
+
+**方法B（CLI）**
+
+1. `npm install -g vercel` で Vercel CLI をインストール
+2. **`import-env-vercel.bat`** を実行
+
+### 3. ローカルで試す
+
+`.env` を保存したあと **`起動.bat`** で起動
+
 ## 端末間の同期（ログイン方式）
 
 - **記録は常にこの端末（ブラウザ）に保存**されます

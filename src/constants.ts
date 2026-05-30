@@ -1,6 +1,6 @@
 import type { Handedness, PitchResult, PitchSide, PitchType, ZoneCell } from './types'
 
-export const STORAGE_KEY = 'prospi-haikyu-data-v2'
+export const STORAGE_KEY = 'prospi-haikyu-data-v4'
 export const SYNC_ID_KEY = 'prospi-sync-id-v1'
 
 export const PITCH_SIDES: { id: PitchSide; label: string }[] = [
@@ -111,4 +111,8 @@ export function getPitchResultLabel(id: PitchResult): string {
 
 export function getZoneLabel(row: number, col: number): string {
   return ZONE_GRID[row]?.[col]?.label ?? `${row},${col}`
+}
+
+export function isInStrikeZone(row: number, col: number): boolean {
+  return ZONE_GRID[row]?.[col]?.inZone ?? false
 }

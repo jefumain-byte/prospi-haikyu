@@ -15,15 +15,13 @@ import {
   subscribeCloudChanges,
 } from '../sync/cloudSync'
 import { mergeAppData, stampData } from '../sync/mergeData'
-import { createSession, loadLocalAppData, saveLocalAppData } from '../storage'
+import { loadLocalAppData, saveLocalAppData } from '../storage'
 import type { AppData } from '../types'
 
 export type SyncStatus = 'loading' | 'local' | 'synced' | 'syncing' | 'offline' | 'error'
 
 function ensureSession(data: AppData): AppData {
-  if (data.sessions.length > 0) return data
-  const session = createSession('相手投手')
-  return stampData({ sessions: [session], activeSessionId: session.id })
+  return data
 }
 
 export function useCloudSync() {

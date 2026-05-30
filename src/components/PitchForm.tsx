@@ -6,6 +6,7 @@ const QUICK_RESULTS: PitchResult[] = ['ball', 'called_strike', 'swinging_strike'
 
 interface PitchFormProps {
   zoneLabel: string
+  inZone: boolean
   pitchSide: PitchSide
   onPitchSideChange: (side: PitchSide) => void
   batterHand: Handedness
@@ -27,6 +28,7 @@ function resultTone(id: PitchResult): string {
 
 export function PitchForm({
   zoneLabel,
+  inZone,
   pitchSide,
   onPitchSideChange,
   batterHand,
@@ -38,7 +40,10 @@ export function PitchForm({
   onSubmit,
   onCancel,
 }: PitchFormProps) {
-  const groups = [...new Set(PITCH_RESULTS.map((r) => r.group))]
+  const unavailable: PitchResult[] = inZone ? ['ball'] : ['called_strike']
+  const availableResults = PITCH_RESULTS.filter((r) => !unavailable.includes(r.id))
+  const quickResults = QUICK_RESULTS.filter((id) => !unavailable.includes(id))
+  const groups = [...new Set(availableResults.map((r) => r.group))]
 
   return (
     <div className="pitch-form">
@@ -65,7 +70,7 @@ export function PitchForm({
       <section className="form-section quick-section">
         <h3>よく使う結果</h3>
         <div className="quick-result-grid">
-          {QUICK_RESULTS.map((id) => {
+          {quickResults.map((id) => {
             const item = PITCH_RESULTS.find((r) => r.id === id)!
             return (
               <button
@@ -103,7 +108,7 @@ export function PitchForm({
           <div key={group} className="result-group">
             <div className="result-group-label">{group}</div>
             <div className="chip-grid">
-              {PITCH_RESULTS.filter((r) => r.group === group).map((item) => (
+              {availableResults.filter((r) => r.group === group).map((item) => (
                 <button
                   key={item.id}
                   type="button"

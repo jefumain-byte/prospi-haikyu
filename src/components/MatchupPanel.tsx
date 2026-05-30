@@ -2,27 +2,26 @@ import { HandToggle } from './HandToggle'
 import type { Handedness } from '../types'
 
 interface MatchupPanelProps {
+  batterLabel: string
   batterHand: Handedness
   pitcherArm: Handedness
   onBatterHandChange: (hand: Handedness) => void
   onPitcherArmChange: (arm: Handedness) => void
-  onBatterChange: () => void
-  onPitcherChange: () => void
 }
 
 export function MatchupPanel({
+  batterLabel,
   batterHand,
   pitcherArm,
   onBatterHandChange,
   onPitcherArmChange,
-  onBatterChange,
-  onPitcherChange,
 }: MatchupPanelProps) {
   return (
     <section className="matchup-panel panel-card">
       <div className="matchup-row">
         <div className="matchup-info">
           <span className="matchup-label">打者</span>
+          <span className="matchup-batter-name">{batterLabel}</span>
           <HandToggle
             value={batterHand}
             onChange={onBatterHandChange}
@@ -30,9 +29,6 @@ export function MatchupPanel({
             leftLabel="左打"
           />
         </div>
-        <button type="button" className="ghost-btn compact matchup-btn" onClick={onBatterChange}>
-          打者交代
-        </button>
       </div>
 
       <div className="matchup-row">
@@ -45,9 +41,6 @@ export function MatchupPanel({
             leftLabel="左投"
           />
         </div>
-        <button type="button" className="ghost-btn compact matchup-btn" onClick={onPitcherChange}>
-          投手交代
-        </button>
       </div>
     </section>
   )

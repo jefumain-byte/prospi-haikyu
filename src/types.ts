@@ -47,6 +47,10 @@ export type PitchSide = 'self' | 'opponent'
 
 export type Handedness = 'right' | 'left'
 
+export type HalfInning = 'top' | 'bottom'
+
+export type AppMode = 'home' | 'browse' | 'record-setup' | 'record'
+
 export interface PitchRecord {
   id: string
   timestamp: number
@@ -60,16 +64,32 @@ export interface PitchRecord {
   batterHand: Handedness
   pitcherArm: Handedness
   pitcherName: string
+  batterOrder: number
+  inning: number
+  halfInning: HalfInning
+}
+
+export interface BatterRecord {
+  id: string
+  order: number
+  label: string
+  batterHand: Handedness
+  createdAt: number
+  pitches: PitchRecord[]
 }
 
 export interface GameSession {
   id: string
   createdAt: number
+  label: string
   pitcherName: string
   defaultPitchSide: PitchSide
-  currentBatterHand: Handedness
   currentPitcherArm: Handedness
-  pitches: PitchRecord[]
+  inning: number
+  halfInning: HalfInning
+  activeBatterOrder: number
+  count: Count
+  batters: BatterRecord[]
 }
 
 export interface AppData {
@@ -77,5 +97,3 @@ export interface AppData {
   activeSessionId: string | null
   updatedAt?: number
 }
-
-export type TabId = 'record' | 'history' | 'stats'
