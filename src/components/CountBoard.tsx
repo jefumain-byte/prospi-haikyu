@@ -2,7 +2,6 @@ import type { Count } from '../types'
 
 interface CountBoardProps {
   count: Count
-  onChange: (count: Count) => void
 }
 
 function DotRow({ total, filled, tone }: { total: number; filled: number; tone: 'ball' | 'strike' | 'out' }) {
@@ -15,12 +14,7 @@ function DotRow({ total, filled, tone }: { total: number; filled: number; tone: 
   )
 }
 
-export function CountBoard({ count, onChange }: CountBoardProps) {
-  const adjustOuts = (delta: number) => {
-    const next = Math.max(0, Math.min(3, count.outs + delta))
-    onChange({ ...count, outs: next })
-  }
-
+export function CountBoard({ count }: CountBoardProps) {
   return (
     <div className="count-board">
       <div className="count-item tone-ball">
@@ -44,17 +38,7 @@ export function CountBoard({ count, onChange }: CountBoardProps) {
           <span className="count-label">Out</span>
           <span className="count-value">{count.outs}</span>
         </div>
-        <div className="outs-row">
-          <DotRow total={3} filled={count.outs} tone="out" />
-          <div className="outs-control">
-            <button type="button" className="mini-btn" onClick={() => adjustOuts(-1)} aria-label="アウトを減らす">
-              −
-            </button>
-            <button type="button" className="mini-btn" onClick={() => adjustOuts(1)} aria-label="アウトを増やす">
-              +
-            </button>
-          </div>
-        </div>
+        <DotRow total={3} filled={count.outs} tone="out" />
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { getBatterHandLabel, getPitchResultLabel, getPitchSideLabel, getPitchTypeLabel, getPitcherArmLabel } from '../constants'
+import { formatPitchResultDisplay, getBatterHandLabel, getPitchSideLabel, getPitchTypeLabel, getPitcherArmLabel } from '../constants'
 import { SideFilterToggle, type SideFilter } from './SideFilterToggle'
 import type { PitchRecord, PitchResult } from '../types'
 
@@ -78,7 +78,7 @@ export function HistoryPanel({ batterLabel, pitches, onUndo }: HistoryPanelProps
                   </span>
                   <strong>{pitch.zoneLabel}</strong>
                   <span className={`history-badge ${resultClass(pitch.result)}`}>
-                    {getPitchResultLabel(pitch.result)}
+                    {formatPitchResultDisplay(pitch)}
                   </span>
                 </div>
                 <div className="history-bottom">

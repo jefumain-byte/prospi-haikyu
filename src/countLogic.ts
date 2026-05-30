@@ -25,6 +25,8 @@ export function updateCount(count: Count, result: PitchResult): Count {
     case 'flyout':
     case 'liner':
       return { balls: 0, strikes: 0, outs: Math.min(outs + 1, 3) }
+    case 'double_play':
+      return { balls: 0, strikes: 0, outs: Math.min(outs + 2, 3) }
     case 'single':
     case 'double':
     case 'triple':

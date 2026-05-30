@@ -1,10 +1,18 @@
-import type { Handedness, PitchResult, PitchSide, PitchType, ZoneCell } from './types'
+import { formatOutTargetsSuffix } from './outLogic'
+import { formatRunnerAdvanceSuffix } from './runnerAdvanceLogic'
+import { formatStealAttemptDisplay } from './stealLogic'
+import type { Handedness, PitchRecord, PitchResult, PitchSide, PitchType, ZoneCell, BattingFirst } from './types'
 
 export const STORAGE_KEY = 'prospi-haikyu-data-v4'
 export const SYNC_ID_KEY = 'prospi-sync-id-v1'
 
+export const BATTING_FIRST_OPTIONS: { id: BattingFirst; label: string; desc: string }[] = [
+  { id: 'self', label: '先攻', desc: '1回表から打つ' },
+  { id: 'opponent', label: '後攻', desc: '1回裏から打つ' },
+]
+
 export const PITCH_SIDES: { id: PitchSide; label: string }[] = [
-  { id: 'opponent', label: '相手' },
+  { id: 'opponent', label: '敵' },
   { id: 'self', label: '自分' },
 ]
 
@@ -18,20 +26,75 @@ export const PITCHER_ARMS: { id: Handedness; label: string }[] = [
   { id: 'left', label: '左投' },
 ]
 
-export const PITCH_TYPES: { id: PitchType; label: string }[] = [
-  { id: 'fastball', label: 'ストレート' },
-  { id: 'shoot', label: 'シュート' },
-  { id: 'two_seam', label: 'ツーシーム' },
-  { id: 'slider', label: 'スライダー' },
-  { id: 'cut', label: 'カット' },
-  { id: 'curve', label: 'カーブ' },
-  { id: 'slow_curve', label: 'スローカーブ' },
-  { id: 'fork', label: 'フォーク' },
-  { id: 'changeup', label: 'チェンジアップ' },
-  { id: 'sinker', label: 'シンカー' },
-  { id: 'knuckle', label: 'ナックル' },
-  { id: 'other', label: 'その他' },
+export const PITCH_TYPE_GROUPS: { group: string; shortLabel: string; types: { id: PitchType; label: string }[] }[] = [
+  {
+    group: 'ストレート系',
+    shortLabel: 'ストレート',
+    types: [
+      { id: 'fastball', label: 'ストレート' },
+      { id: 'two_seam_fast', label: 'ツーシームファスト' },
+      { id: 'moving_fast', label: 'ムービングファスト' },
+      { id: 'one_seam', label: 'ワンシーム' },
+      { id: 'change_of_pace', label: 'チェンジオブペース' },
+      { id: 'changeup', label: 'チェンジアップ' },
+      { id: 'ultra_slow', label: '超スローボール' },
+      { id: 'straight', label: '真っスラ' },
+      { id: 'natural_shoot', label: 'ナチュラルシュート' },
+      { id: 'ephus', label: 'イーファスピッチ' },
+    ],
+  },
+  {
+    group: 'スライダー系',
+    shortLabel: 'スライダー',
+    types: [
+      { id: 'slider', label: 'スライダー' },
+      { id: 'slurve', label: 'スラーブ' },
+      { id: 'cut_ball', label: 'カットボール' },
+    ],
+  },
+  {
+    group: 'カーブ系',
+    shortLabel: 'カーブ',
+    types: [
+      { id: 'curve', label: 'カーブ' },
+      { id: 'slow_curve', label: 'スローカーブ' },
+      { id: 'd_curve', label: 'Dカーブ' },
+      { id: 'power_curve', label: 'パワーカーブ' },
+      { id: 'knuckle_curve', label: 'ナックルカーブ' },
+    ],
+  },
+  {
+    group: 'フォーク系',
+    shortLabel: 'フォーク',
+    types: [
+      { id: 'fork', label: 'フォーク' },
+      { id: 'sff', label: 'SFF' },
+      { id: 'palm', label: 'パーム' },
+      { id: 'knuckle', label: 'ナックル' },
+      { id: 'vertical_slider', label: '縦スライダー' },
+      { id: 'vertical_cut', label: '縦カット' },
+      { id: 'changeup', label: 'チェンジアップ' },
+      { id: 'split_change', label: 'スプリットチェンジ' },
+    ],
+  },
+  {
+    group: 'シンカー系',
+    shortLabel: 'シンカー',
+    types: [
+      { id: 'sinker_screw', label: 'シンカー(スクリュー)' },
+      { id: 'high_speed_sinker', label: '高速シンカー' },
+      { id: 'circle_change', label: 'サークルチェンジ' },
+      { id: 'palm', label: 'パーム' },
+    ],
+  },
 ]
+
+export const PITCH_TYPES: { id: PitchType; label: string }[] = PITCH_TYPE_GROUPS.flatMap((g) => g.types).filter(
+  (type, index, list) => list.findIndex((item) => item.id === type.id) === index,
+)
+
+export const PITCH_RESULT_NORMAL_GROUPS = ['判定', '打球'] as const
+export const PITCH_RESULT_EXTRA_GROUP = 'その他'
 
 export const PITCH_RESULTS: { id: PitchResult; label: string; group: string }[] = [
   { id: 'ball', label: 'ボール', group: '判定' },
@@ -41,6 +104,7 @@ export const PITCH_RESULTS: { id: PitchResult; label: string; group: string }[] 
   { id: 'groundout', label: 'ゴロアウト', group: '打球' },
   { id: 'flyout', label: 'フライアウト', group: '打球' },
   { id: 'liner', label: 'ライナー', group: '打球' },
+  { id: 'double_play', label: 'ダブルプレー', group: '打球' },
   { id: 'single', label: 'ヒット', group: '打球' },
   { id: 'double', label: '二塁打', group: '打球' },
   { id: 'triple', label: '三塁打', group: '打球' },
@@ -49,6 +113,7 @@ export const PITCH_RESULTS: { id: PitchResult; label: string; group: string }[] 
   { id: 'hbp', label: '死球', group: 'その他' },
   { id: 'bunt', label: 'バント', group: 'その他' },
   { id: 'error', label: 'エラー', group: 'その他' },
+  { id: 'steal', label: '盗塁', group: 'その他' },
 ]
 
 export const ZONE_GRID: ZoneCell[][] = [
@@ -93,6 +158,10 @@ export function getPitchSideLabel(id: PitchSide): string {
   return PITCH_SIDES.find((s) => s.id === id)?.label ?? id
 }
 
+export function getBattingFirstLabel(id: BattingFirst): string {
+  return BATTING_FIRST_OPTIONS.find((o) => o.id === id)?.label ?? id
+}
+
 export function getBatterHandLabel(id: Handedness): string {
   return BATTER_HANDS.find((h) => h.id === id)?.label ?? id
 }
@@ -107,6 +176,40 @@ export function getPitchTypeLabel(id: PitchType): string {
 
 export function getPitchResultLabel(id: PitchResult): string {
   return PITCH_RESULTS.find((r) => r.id === id)?.label ?? id
+}
+
+export function getEffectivePitchResult(pitch: Pick<PitchRecord, 'result' | 'primaryResult' | 'extraResult'>): PitchResult {
+  return pitch.extraResult ?? pitch.primaryResult ?? pitch.result
+}
+
+export function formatPitchResultDisplay(
+  pitch: Pick<
+    PitchRecord,
+    | 'result'
+    | 'primaryResult'
+    | 'extraResult'
+    | 'outsRecorded'
+    | 'runnersAdvanced'
+    | 'batterOrder'
+    | 'stealAttempt'
+  >,
+): string {
+  const primary = pitch.primaryResult ?? pitch.result
+  const extra = pitch.extraResult
+  const batterLabel = `${pitch.batterOrder}番`
+  const outSuffix = formatOutTargetsSuffix(pitch.outsRecorded, batterLabel)
+  const advanceSuffix = formatRunnerAdvanceSuffix(pitch.runnersAdvanced)
+
+  let base: string
+  if (extra === 'steal' && pitch.stealAttempt) {
+    base = `${getPitchResultLabel(primary)} · ${formatStealAttemptDisplay(pitch.stealAttempt)}`
+  } else if (extra) {
+    base = `${getPitchResultLabel(primary)} · ${getPitchResultLabel(extra)}`
+  } else {
+    base = getPitchResultLabel(primary)
+  }
+
+  return `${base}${outSuffix}${advanceSuffix}`
 }
 
 export function getZoneLabel(row: number, col: number): string {

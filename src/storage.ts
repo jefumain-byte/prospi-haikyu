@@ -1,5 +1,10 @@
 import { STORAGE_KEY, getZoneLabel } from './constants'
-import type { AppData, BatterRecord, Count, GameSession, Handedness, PitchRecord, PitchSide } from './types'
+import { normalizePitcherName } from './data/pitcherNames'
+import { atBatEnds, getActiveBatterOrder, mapSetupPitchers, resolveBattingSide, resolvePitchSide } from './gameLogic'
+import { DEFAULT_SPECIAL_EXTRA_INNING_START } from './specialExtraLogic'
+import { EMPTY_RUNNERS, updateRunners } from './runnerLogic'
+import { applyStealAttempt } from './stealLogic'
+import type { AppData, BatterRecord, BattingFirst, Count, GameSession, Handedness, HalfInning, PitchRecord, PitchSide, PitchType } from './types'
 
 const STORAGE_KEY_V3 = 'prospi-haikyu-data-v3'
 const STORAGE_KEY_V2 = 'prospi-haikyu-data-v2'
@@ -14,9 +19,11 @@ const defaultData: AppData = {
 
 type LegacySession = Partial<GameSession> & {
   activeBatterId?: string
+  defaultPitchSide?: 'self' | 'opponent'
   pitches?: PitchRecord[]
   currentBatterHand?: Handedness
   batters?: BatterRecord[]
+  pitcherName?: string
 }
 
 export function formatGameLabel(createdAt: number): string {
@@ -39,22 +46,89 @@ export function createLineup(): BatterRecord[] {
   return Array.from({ length: 9 }, (_, index) => createBatter(index + 1))
 }
 
-export function createSession(pitcherName: string, defaultPitchSide: PitchSide = 'opponent'): GameSession {
+export function createSession(
+  battingFirst: BattingFirst,
+  battingFirstPitcher: string,
+  battingSecondPitcher: string,
+  specialExtraInningStart: number = DEFAULT_SPECIAL_EXTRA_INNING_START,
+): GameSession {
   const now = Date.now()
   const batters = createLineup()
+  const { selfPitcherName, opponentPitcherName } = mapSetupPitchers(
+    battingFirst,
+    battingFirstPitcher,
+    battingSecondPitcher,
+  )
   return {
     id: crypto.randomUUID(),
     createdAt: now,
     label: formatGameLabel(now),
-    pitcherName: pitcherName.trim() || (defaultPitchSide === 'self' ? '自分' : '相手投手'),
-    defaultPitchSide,
+    selfPitcherName,
+    opponentPitcherName,
+    battingFirst,
     currentPitcherArm: 'right',
     inning: 1,
     halfInning: 'top',
+    selfBatterOrder: 1,
+    opponentBatterOrder: 1,
     activeBatterOrder: 1,
     count: { ...initialCount },
+    runners: { ...EMPTY_RUNNERS },
+    selfScore: 0,
+    opponentScore: 0,
+    specialExtraInningStart,
     batters,
   }
+}
+
+function getAllSessionPitches(session: GameSession): PitchRecord[] {
+  return session.batters
+    .flatMap((batter) => batter.pitches)
+    .sort((a, b) => a.timestamp - b.timestamp)
+}
+
+function getEffectivePitchResultForScore(pitch: PitchRecord): PitchRecord['result'] {
+  const primary = pitch.primaryResult ?? pitch.result
+  const extra = pitch.extraResult
+  if (!extra || extra === 'steal') return primary
+  return extra
+}
+
+function rebuildSessionScores(session: GameSession): Pick<GameSession, 'selfScore' | 'opponentScore'> {
+  let selfScore = 0
+  let opponentScore = 0
+
+  for (const pitch of getAllSessionPitches(session)) {
+    if (pitch.runsScored != null && pitch.scoringSide != null) {
+      if (pitch.scoringSide === 'self') selfScore += pitch.runsScored
+      else opponentScore += pitch.runsScored
+      continue
+    }
+
+    const effectiveResult = getEffectivePitchResultForScore(pitch)
+    const atBatEnded = atBatEnds(effectiveResult, pitch.countBefore)
+    const runnerUpdate = updateRunners(
+      pitch.runnersBefore,
+      effectiveResult,
+      atBatEnded,
+      pitch.outsRecorded,
+      pitch.runnersAdvanced,
+    )
+    let runsScored = runnerUpdate.runsScored
+
+    if (pitch.stealAttempt) {
+      const stealUpdate = applyStealAttempt(runnerUpdate.runners, pitch.countBefore, pitch.stealAttempt)
+      runsScored += stealUpdate.runsScored
+    }
+
+    if (runsScored <= 0) continue
+
+    const scoringSide = resolveBattingSide(session.battingFirst, pitch.halfInning)
+    if (scoringSide === 'self') selfScore += runsScored
+    else opponentScore += runsScored
+  }
+
+  return { selfScore, opponentScore }
 }
 
 export function getBatterByOrder(session: GameSession, order: number): BatterRecord | null {
@@ -63,7 +137,7 @@ export function getBatterByOrder(session: GameSession, order: number): BatterRec
 
 export function getActiveBatter(session: GameSession | null | undefined): BatterRecord | null {
   if (!session) return null
-  return getBatterByOrder(session, session.activeBatterOrder) ?? session.batters[0] ?? null
+  return getBatterByOrder(session, getActiveBatterOrder(session)) ?? session.batters[0] ?? null
 }
 
 export function getSessionPitchCount(session: GameSession): number {
@@ -84,16 +158,119 @@ export function getLastSessionPitch(session: GameSession): { batter: BatterRecor
   return last
 }
 
-function normalizePitch(pitch: PitchRecord, batter: BatterRecord, session: GameSession): PitchRecord {
+export function getSessionUpdatedAt(session: GameSession): number {
+  const last = getLastSessionPitch(session)
+  return last?.pitch.timestamp ?? session.finishedAt ?? session.createdAt
+}
+
+export function isSessionFinished(session: GameSession): boolean {
+  return session.finishedAt != null
+}
+
+export function getActiveSession(sessions: GameSession[]): GameSession | null {
+  const active = sessions.filter((session) => !isSessionFinished(session))
+  if (active.length === 0) return null
+  return [...active].sort((a, b) => getSessionUpdatedAt(b) - getSessionUpdatedAt(a))[0] ?? null
+}
+
+export function getMostRecentSession(sessions: GameSession[]): GameSession | null {
+  if (sessions.length === 0) return null
+  return [...sessions].sort((a, b) => getSessionUpdatedAt(b) - getSessionUpdatedAt(a))[0] ?? null
+}
+
+export function finishSession(data: AppData, sessionId: string): AppData {
+  const now = Date.now()
+  return {
+    ...data,
+    activeSessionId: data.activeSessionId === sessionId ? null : data.activeSessionId,
+    sessions: data.sessions.map((session) =>
+      session.id === sessionId ? { ...session, finishedAt: now } : session,
+    ),
+  }
+}
+
+export function resumeSession(data: AppData, sessionId: string): AppData {
+  return {
+    ...data,
+    activeSessionId: sessionId,
+    sessions: data.sessions.map((session) =>
+      session.id === sessionId ? { ...session, finishedAt: undefined } : session,
+    ),
+  }
+}
+
+export function deleteSession(data: AppData, sessionId: string): AppData {
+  return {
+    ...data,
+    sessions: data.sessions.filter((session) => session.id !== sessionId),
+    activeSessionId: data.activeSessionId === sessionId ? null : data.activeSessionId,
+  }
+}
+
+function migratePitcherNames(session: LegacySession, battingFirst: BattingFirst): {
+  selfPitcherName: string
+  opponentPitcherName: string
+} {
+  if (session.selfPitcherName && session.opponentPitcherName) {
+    return {
+      selfPitcherName: session.selfPitcherName,
+      opponentPitcherName: session.opponentPitcherName,
+    }
+  }
+
+  const legacyPitcher = session.pitcherName?.trim()
+  if (battingFirst === 'opponent') {
+    return {
+      selfPitcherName: session.selfPitcherName ?? legacyPitcher ?? '自分',
+      opponentPitcherName: session.opponentPitcherName ?? '敵',
+    }
+  }
+  return {
+    opponentPitcherName: session.opponentPitcherName ?? legacyPitcher ?? '敵',
+    selfPitcherName: session.selfPitcherName ?? '自分',
+  }
+}
+
+function resolvePitchSideLegacy(session: LegacySession, halfInning: HalfInning): PitchSide {
+  if (session.battingFirst) {
+    return resolvePitchSide(session.battingFirst, halfInning)
+  }
+  return session.defaultPitchSide ?? 'opponent'
+}
+
+const LEGACY_PITCH_TYPES: Record<string, PitchType> = {
+  shoot: 'natural_shoot',
+  two_seam: 'two_seam_fast',
+  cut: 'cut_ball',
+  sinker: 'sinker_screw',
+  other: 'straight',
+}
+
+function migratePitchType(type: string): PitchType {
+  if (LEGACY_PITCH_TYPES[type]) return LEGACY_PITCH_TYPES[type]
+  return type as PitchType
+}
+
+function normalizePitch(pitch: PitchRecord, batter: BatterRecord, session: LegacySession): PitchRecord {
+  const primaryResult = pitch.primaryResult ?? pitch.result
+  const extraResult = pitch.extraResult
+  const result = extraResult && extraResult !== 'steal' ? extraResult : primaryResult
+
   return {
     ...pitch,
-    pitchSide: pitch.pitchSide ?? session.defaultPitchSide ?? 'opponent',
+    pitchType: migratePitchType(pitch.pitchType),
+    pitchSide: pitch.pitchSide ?? resolvePitchSideLegacy(session, pitch.halfInning ?? 'top'),
     batterHand: pitch.batterHand ?? batter.batterHand,
     pitcherArm: pitch.pitcherArm ?? session.currentPitcherArm ?? 'right',
     batterOrder: pitch.batterOrder ?? batter.order,
     inning: pitch.inning ?? 1,
     halfInning: pitch.halfInning ?? 'top',
+    countBefore: pitch.countBefore ?? { ...initialCount },
+    runnersBefore: pitch.runnersBefore ?? { ...EMPTY_RUNNERS },
     zoneLabel: getZoneLabel(pitch.row, pitch.col),
+    primaryResult,
+    extraResult,
+    result,
   }
 }
 
@@ -122,21 +299,33 @@ function migrateSession(session: LegacySession): GameSession {
     batters.find((batter) => batter.id === session.activeBatterId)?.order ??
     1
 
+  const battingFirst: BattingFirst = session.battingFirst ?? 'opponent'
+  const { selfPitcherName, opponentPitcherName } = migratePitcherNames(session, battingFirst)
+
   const migrated: GameSession = {
     id: session.id ?? crypto.randomUUID(),
     createdAt,
     label: session.label || formatGameLabel(createdAt),
-    pitcherName: session.pitcherName ?? '相手投手',
-    defaultPitchSide: session.defaultPitchSide ?? 'opponent',
+    selfPitcherName,
+    opponentPitcherName,
+    battingFirst,
     currentPitcherArm: session.currentPitcherArm ?? 'right',
     inning: session.inning ?? 1,
     halfInning: session.halfInning ?? 'top',
+    selfBatterOrder: session.selfBatterOrder ?? activeOrder,
+    opponentBatterOrder: session.opponentBatterOrder ?? activeOrder,
     activeBatterOrder: activeOrder,
     count: session.count ?? { ...initialCount },
+    runners: session.runners ?? { ...EMPTY_RUNNERS },
+    selfScore: session.selfScore ?? 0,
+    opponentScore: session.opponentScore ?? 0,
+    specialExtraInningStart: session.specialExtraInningStart ?? DEFAULT_SPECIAL_EXTRA_INNING_START,
+    heldBatterOrder: session.heldBatterOrder,
+    heldBattingSide: session.heldBattingSide,
     batters: batters.map((batter) => ({
       ...batter,
       label: batter.label || `${batter.order}番`,
-      pitches: (batter.pitches ?? []).map((pitch) => normalizePitch(pitch, batter, session as GameSession)),
+      pitches: (batter.pitches ?? []).map((pitch) => normalizePitch(pitch, batter, { ...session, battingFirst })),
     })),
   }
 
@@ -146,7 +335,22 @@ function migrateSession(session: LegacySession): GameSession {
     )
   }
 
-  return migrated
+  return { ...migrated, ...rebuildSessionScores(migrated) }
+}
+
+function normalizeSessionPitcherNames(session: GameSession): GameSession {
+  return {
+    ...session,
+    selfPitcherName: normalizePitcherName(session.selfPitcherName),
+    opponentPitcherName: normalizePitcherName(session.opponentPitcherName),
+    batters: session.batters.map((batter) => ({
+      ...batter,
+      pitches: batter.pitches.map((pitch) => ({
+        ...pitch,
+        pitcherName: normalizePitcherName(pitch.pitcherName),
+      })),
+    })),
+  }
 }
 
 function migrateGridRows(data: AppData): AppData {
@@ -172,7 +376,7 @@ function migrateGridRows(data: AppData): AppData {
 export function syncStoredData(data: AppData): AppData {
   return {
     ...data,
-    sessions: data.sessions.map((session) => migrateSession(session as LegacySession)),
+    sessions: data.sessions.map((session) => normalizeSessionPitcherNames(migrateSession(session as LegacySession))),
   }
 }
 

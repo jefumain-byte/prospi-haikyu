@@ -77,7 +77,9 @@ export function StrikeZone({ pitches, selectedRow, selectedCol, onSelect }: Stri
 
       <ZoneFrame renderCell={renderCell} />
 
-      <p className="zone-hint">マスをタップ → 球種・結果を選んで記録</p>
+      <p className="zone-hint">
+        {selectedRow !== null && selectedCol !== null ? '別のマスをタップで位置変更' : 'マスをタップして記録開始'}
+      </p>
     </div>
   )
 }

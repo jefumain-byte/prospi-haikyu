@@ -1,18 +1,20 @@
 import { useMemo, useState } from 'react'
 import {
   getBatterHandLabel,
-  getPitchResultLabel,
+  formatPitchResultDisplay,
   getPitchSideLabel,
   getPitchTypeLabel,
   getPitcherArmLabel,
 } from '../constants'
-import { formatInningLabel } from '../gameLogic'
-import { formatGameLabel, getSessionPitchCount } from '../storage'
+import { formatInningLabel, formatSessionPitchers, formatSessionScore, getSessionProgressLabel } from '../gameLogic'
+import { formatGameLabel, getSessionPitchCount, getSessionUpdatedAt, isSessionFinished } from '../storage'
 import type { BatterRecord, GameSession, PitchRecord, PitchResult } from '../types'
 
 interface RecordsPanelProps {
   sessions: GameSession[]
   onBack: () => void
+  onResumeSession: (sessionId: string) => void
+  onDeleteSession: (sessionId: string) => void
 }
 
 function formatTime(timestamp: number) {
@@ -38,6 +40,11 @@ function resultClass(result: PitchResult): string {
   return 'result-out'
 }
 
+function confirmDeleteSession(session: GameSession): boolean {
+  const label = session.label || formatGameLabel(session.createdAt)
+  return window.confirm(`「${label}」の記録を削除しますか？\nこの操作は取り消せません。`)
+}
+
 function PitchMiniList({ pitches }: { pitches: PitchRecord[] }) {
   if (pitches.length === 0) {
     return <p className="records-empty">この打者の記録はまだありません</p>
@@ -56,11 +63,12 @@ function PitchMiniList({ pitches }: { pitches: PitchRecord[] }) {
               <span className={`side-badge side-${pitch.pitchSide}`}>{getPitchSideLabel(pitch.pitchSide)}</span>
               <strong>{pitch.zoneLabel}</strong>
               <span className={`history-badge ${resultClass(pitch.result)}`}>
-                {getPitchResultLabel(pitch.result)}
+                {formatPitchResultDisplay(pitch)}
               </span>
             </div>
             <div className="history-bottom">
               <span>{getPitchTypeLabel(pitch.pitchType)}</span>
+              <span>{pitch.pitcherName}</span>
               <span className="hand-badge">{getBatterHandLabel(pitch.batterHand)}</span>
               <span className="hand-badge">{getPitcherArmLabel(pitch.pitcherArm)}</span>
               <span className="history-count">
@@ -75,9 +83,9 @@ function PitchMiniList({ pitches }: { pitches: PitchRecord[] }) {
   )
 }
 
-export function RecordsPanel({ sessions, onBack }: RecordsPanelProps) {
+export function RecordsPanel({ sessions, onBack, onResumeSession, onDeleteSession }: RecordsPanelProps) {
   const sortedSessions = useMemo(
-    () => [...sessions].sort((a, b) => b.createdAt - a.createdAt),
+    () => [...sessions].sort((a, b) => getSessionUpdatedAt(b) - getSessionUpdatedAt(a)),
     [sessions],
   )
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(sortedSessions[0]?.id ?? null)
@@ -100,6 +108,16 @@ export function RecordsPanel({ sessions, onBack }: RecordsPanelProps) {
 
   const handleSelectBatter = (batter: BatterRecord) => {
     setSelectedBatterId(batter.id)
+  }
+
+  const handleDelete = (session: GameSession) => {
+    if (!confirmDeleteSession(session)) return
+    onDeleteSession(session.id)
+    if (selectedSessionId === session.id) {
+      const remaining = sortedSessions.filter((item) => item.id !== session.id)
+      setSelectedSessionId(remaining[0]?.id ?? null)
+      setSelectedBatterId(remaining[0]?.batters[0]?.id ?? null)
+    }
   }
 
   return (
@@ -138,10 +156,16 @@ export function RecordsPanel({ sessions, onBack }: RecordsPanelProps) {
                         className={`records-game-btn ${isActive ? 'active' : ''}`}
                         onClick={() => handleSelectSession(session)}
                       >
-                        <span className="records-game-label">{session.label || formatGameLabel(session.createdAt)}</span>
-                        <span className="records-game-meta">
-                          {session.pitcherName} · {pitchCount}球
+                        <span className="records-game-label">
+                          {session.label || formatGameLabel(session.createdAt)}
+                          {isSessionFinished(session) ? (
+                            <span className="records-game-status">終了</span>
+                          ) : null}
                         </span>
+                        <span className="records-game-meta">
+                          {getSessionProgressLabel(session)} · {pitchCount}球
+                        </span>
+                        <span className="records-game-pitchers">{formatSessionPitchers(session)}</span>
                         <span className="records-game-date">{formatDate(session.createdAt)}</span>
                       </button>
 
@@ -172,12 +196,28 @@ export function RecordsPanel({ sessions, onBack }: RecordsPanelProps) {
             <section className="panel-card records-detail">
               {selectedSession && selectedBatter ? (
                 <>
-                  <div className="panel-head">
+                  <div className="panel-head records-detail-head">
                     <div>
                       <h3>{selectedBatter.label}</h3>
                       <p className="panel-sub">
-                        {selectedSession.label} / {selectedSession.pitcherName} · {selectedBatter.pitches.length}球
+                        {selectedSession.label} / {formatSessionPitchers(selectedSession)} · {formatSessionScore(selectedSession)} · {selectedBatter.pitches.length}球
                       </p>
+                    </div>
+                    <div className="records-detail-actions">
+                      <button
+                        type="button"
+                        className="primary-btn compact"
+                        onClick={() => onResumeSession(selectedSession.id)}
+                      >
+                        {isSessionFinished(selectedSession) ? '記録を再開' : '続きから記録'}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-btn compact danger-btn"
+                        onClick={() => handleDelete(selectedSession)}
+                      >
+                        削除
+                      </button>
                     </div>
                   </div>
                   <PitchMiniList pitches={selectedBatter.pitches} />
