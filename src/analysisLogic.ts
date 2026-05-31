@@ -1,6 +1,7 @@
 import { computeBattingAnalysis, type BattingAnalysisResult, type ZoneStat } from './battingAnalysisLogic'
 import { computePitchTypeAnalysis, type PitchTypeAnalysisResult } from './pitchTypeAnalysisLogic'
 import { computePitchingAnalysis, type PitchingAnalysisResult } from './pitchingAnalysisLogic'
+import { computeSplitAnalysis, type SplitAnalysisResult } from './splitAnalysisLogic'
 import { getSessionPitchCount, getSessionUpdatedAt } from './storage'
 import { formatInningsPitched, formatWinRate, zoneHeatLevel } from './statsFormat'
 import type { GameSession } from './types'
@@ -8,6 +9,7 @@ import type { GameSession } from './types'
 export type { BattingAnalysisResult, ZoneStat } from './battingAnalysisLogic'
 export type { PitchingAnalysisResult, ZoneAgainstStat } from './pitchingAnalysisLogic'
 export type { PitchTypeAnalysisResult, PitchTypeGroupStat, PitchTypeSideAnalysis, PitchTypeStat } from './pitchTypeAnalysisLogic'
+export type { SplitAnalysisResult, SplitGroup, SplitStatLine } from './splitAnalysisLogic'
 
 export interface WinStats {
   wins: number
@@ -28,6 +30,7 @@ export interface SelfAnalysisSnapshot {
   batting: BattingAnalysisResult
   pitching: PitchingAnalysisResult
   pitchTypes: PitchTypeAnalysisResult
+  splits: SplitAnalysisResult
 }
 
 export function getAnalysisSessions(sessions: GameSession[], limit?: number): GameSession[] {
@@ -58,6 +61,7 @@ export function computeSelfAnalysis(sessions: GameSession[]): SelfAnalysisSnapsh
   const batting = computeBattingAnalysis(sessions)
   const pitching = computePitchingAnalysis(sessions)
   const pitchTypes = computePitchTypeAnalysis(sessions)
+  const splits = computeSplitAnalysis(sessions)
 
   return {
     header: {
@@ -70,6 +74,7 @@ export function computeSelfAnalysis(sessions: GameSession[]): SelfAnalysisSnapsh
     batting,
     pitching,
     pitchTypes,
+    splits,
   }
 }
 

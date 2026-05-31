@@ -60,6 +60,16 @@ export function AnalysisAssumptions() {
         </section>
 
         <section>
+          <h3>状況別分析（Phase 2）</h3>
+          <ul>
+            <li>打席終了球のカウント・走者状況・左右の組み合わせで集計</li>
+            <li>カウントはその球の投球前カウント（初球=0-0、2ストライク以降、3-2）</li>
+            <li>走者状況はその球の投球前走者（得点圏=二塁または三塁）</li>
+            <li>打率・長打率は打数{MIN_RATE_SAMPLE}未満で「---」</li>
+          </ul>
+        </section>
+
+        <section>
           <h3>球種別分析（配球タブ）</h3>
           <ul>
             <li>使用率は全投球数に対する割合</li>

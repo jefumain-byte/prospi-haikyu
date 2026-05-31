@@ -1,4 +1,5 @@
 import type { SelfAnalysisSnapshot } from '../../analysisLogic'
+import { AnalysisSplitSection } from './AnalysisSplitSection'
 import { AnalysisStatCard } from './AnalysisStatCard'
 import { ZoneAnalysisMap } from './ZoneAnalysisMap'
 
@@ -52,6 +53,13 @@ export function AnalysisPitchingTab({ snapshot }: { snapshot: SelfAnalysisSnapsh
           </div>
         </div>
       </section>
+
+      <AnalysisSplitSection
+        title="状況別投球"
+        subtitle="相手打席終了球のカウント・走者・左右の組み合わせごと（打数3未満は---）"
+        groups={snapshot.splits.pitching}
+        averageLabel="被打率"
+      />
 
       <ZoneAnalysisMap
         title="コース別分析"

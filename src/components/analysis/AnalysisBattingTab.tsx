@@ -1,4 +1,5 @@
 import type { SelfAnalysisSnapshot } from '../../analysisLogic'
+import { AnalysisSplitSection } from './AnalysisSplitSection'
 import { AnalysisStatCard } from './AnalysisStatCard'
 import { ZoneAnalysisMap } from './ZoneAnalysisMap'
 
@@ -36,6 +37,13 @@ export function AnalysisBattingTab({ snapshot }: { snapshot: SelfAnalysisSnapsho
           <AnalysisStatCard label="死球" value={String(batting.hbp)} detail={`打席${batting.plateAppearances}`} />
         </div>
       </section>
+
+      <AnalysisSplitSection
+        title="状況別打撃"
+        subtitle="打席終了球のカウント・走者・左右の組み合わせごと（打数3未満は---）"
+        groups={snapshot.splits.batting}
+        averageLabel="打率"
+      />
 
       <ZoneAnalysisMap
         title="コース別分析"
