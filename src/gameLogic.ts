@@ -1,4 +1,14 @@
-import { updateCount } from './countLogic'
+import { updateCount, isFourBallWalk } from './countLogic'
+import {
+  applyBuntFoulCount,
+  applyBuntBatterOutRunners,
+  applySacrificeBuntRunners,
+  atBatEnds,
+  isBuntBatterOutOnly,
+  isBuntFoul,
+  isBuntSacrifice,
+  resolveEffectiveGameResult,
+} from './buntLogic'
 import { applySpecialExtraHalfStart } from './specialExtraLogic'
 import { applyStealAttempt } from './stealLogic'
 import { updateRunners } from './runnerLogic'
@@ -11,7 +21,7 @@ import type {
   PitchResult,
   PitchSide,
   StealAttempt,
-  RunnerBase,
+  RunnerAdvanceRecord,
 } from './types'
 
 export function formatInningLabel(inning: number, half: HalfInning): string {
@@ -140,38 +150,7 @@ export function getSessionProgressLabel(
   return `${formatInningLabel(session.inning, session.halfInning)} · ${getActiveBatterOrder(session)}番 · ${formatSessionScore(session)}`
 }
 
-export function atBatEnds(result: PitchResult, countBefore: Count): boolean {
-  switch (result) {
-    case 'groundout':
-    case 'flyout':
-    case 'liner':
-    case 'double_play':
-    case 'walk':
-    case 'hbp':
-    case 'single':
-    case 'double':
-    case 'triple':
-    case 'homerun':
-    case 'bunt':
-    case 'error':
-      return true
-    case 'called_strike':
-    case 'swinging_strike':
-      return countBefore.strikes >= 2
-    case 'ball':
-      return countBefore.balls >= 3
-    case 'foul':
-    case 'steal':
-      return false
-    default:
-      return false
-  }
-}
-
-function resolveEffectiveGameResult(primaryResult: PitchResult, extraResult?: PitchResult | null): PitchResult {
-  if (!extraResult || extraResult === 'steal') return primaryResult
-  return extraResult
-}
+export { atBatEnds, resolveEffectiveGameResult } from './buntLogic'
 
 export function advanceGameState(
   session: Pick<
@@ -194,7 +173,7 @@ export function advanceGameState(
   extraResult?: PitchResult | null,
   outsRecorded?: OutTarget[],
   stealAttempt?: StealAttempt | null,
-  runnersAdvanced?: RunnerBase[],
+  runnerAdvances?: RunnerAdvanceRecord[],
 ): Pick<
   GameSession,
   | 'inning'
@@ -214,7 +193,10 @@ export function advanceGameState(
   holdBatterOrderAfterHalf: boolean
 } {
   const effectiveGameResult = resolveEffectiveGameResult(primaryResult, extraResult)
-  let count = updateCount(countBefore, primaryResult)
+  const runnerGameResult = isFourBallWalk(countBefore, primaryResult) ? 'walk' : effectiveGameResult
+  let count = isBuntFoul(primaryResult, extraResult)
+    ? applyBuntFoulCount(countBefore)
+    : updateCount(countBefore, primaryResult)
   let { inning, halfInning, runners, selfScore, opponentScore } = session
   let selfBatterOrder = session.selfBatterOrder ?? session.activeBatterOrder ?? 1
   let opponentBatterOrder = session.opponentBatterOrder ?? session.activeBatterOrder ?? 1
@@ -223,15 +205,20 @@ export function advanceGameState(
   const battingSideThisPitch = resolveBattingSide(session.battingFirst, halfInning)
   let currentBatterOrder =
     battingSideThisPitch === 'self' ? selfBatterOrder : opponentBatterOrder
-  const atBatEnded = atBatEnds(effectiveGameResult, countBefore)
+  const atBatEnded = atBatEnds(primaryResult, countBefore, extraResult)
 
-  const runnerUpdate = updateRunners(
-    runners,
-    effectiveGameResult,
-    atBatEnded,
-    outsRecorded,
-    runnersAdvanced,
-  )
+  const runnerUpdate = isBuntSacrifice(primaryResult, extraResult)
+    ? applySacrificeBuntRunners(runners, outsRecorded)
+    : isBuntBatterOutOnly(primaryResult, extraResult)
+      ? applyBuntBatterOutRunners(runners, runnerAdvances)
+      : updateRunners(
+          runners,
+          runnerGameResult,
+          atBatEnded,
+          outsRecorded,
+          runnerAdvances,
+          countBefore.outs,
+        )
   runners = runnerUpdate.runners
   let runsScored = runnerUpdate.runsScored
   let scoringSide: PitchSide | null = null

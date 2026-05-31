@@ -17,6 +17,7 @@ interface HomeScreenProps {
   sessions: GameSession[]
   onBattingFirstChange: (value: BattingFirst) => void
   onBrowse: () => void
+  onAnalysis: () => void
   onRecord: () => void
   onResumeSession: (sessionId: string) => void
   onUpdateSession: (sessionId: string, fields: SessionEditFields) => void
@@ -41,6 +42,7 @@ export function HomeScreen({
   sessions,
   onBattingFirstChange,
   onBrowse,
+  onAnalysis,
   onRecord,
   onResumeSession,
   onUpdateSession,
@@ -89,7 +91,7 @@ export function HomeScreen({
       <header className="home-hero panel-card">
         <p className="app-kicker">eBASEBALL プロスピA</p>
         <h1>配球記録</h1>
-        <p className="home-lead">試合の配球を記録したり、保存済みの記録を閲覧できます</p>
+        <p className="home-lead">試合の配球を記録したり、保存済みの記録を閲覧・分析できます</p>
       </header>
 
       {latestSession && (
@@ -190,6 +192,12 @@ export function HomeScreen({
           <span className="home-action-icon">📁</span>
           <span className="home-action-title">記録を閲覧</span>
           <span className="home-action-desc">試合の閲覧・続きから記録・削除</span>
+        </button>
+
+        <button type="button" className="home-action-card analysis-card" onClick={onAnalysis}>
+          <span className="home-action-icon">📊</span>
+          <span className="home-action-title">分析</span>
+          <span className="home-action-desc">打率・出塁率・勝率・防御率とコース別成績</span>
         </button>
 
         <button type="button" className="home-action-card record-card" onClick={onRecord}>

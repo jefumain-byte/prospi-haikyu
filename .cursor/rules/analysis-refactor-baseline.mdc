@@ -1,0 +1,27 @@
+---
+description: 分析画面リファクタ（Step1-6）のベースライン。戻す際の参照用。
+globs: src/analysisLogic.ts,src/*AnalysisLogic.ts,src/statsFormat.ts,src/components/AnalysisPanel.tsx,src/components/analysis/**,src/components/ZoneFrame.tsx
+alwaysApply: false
+---
+
+# 分析リファクタ ベースライン（2026-05）
+
+Step 1–6 完了時点。
+
+## 構成
+
+- `statsFormat.ts` — フォーマット・`MIN_RATE_SAMPLE=3`・ヒートレベル
+- `battingAnalysisLogic.ts` / `pitchingAnalysisLogic.ts` — ゾーンに `totalBases`/`slugging` 含む
+- `pitchTypeAnalysisLogic.ts` — 球種グループ化（`byGroup`）
+- `analysisLogic.ts` — オーケストレータ
+
+## UI
+
+- 4タブ + ヘッダー統計
+- `ZoneAnalysisMap` — 指標切替・ゾーントグル・n≥3色付け
+- `AnalysisAssumptions` — 画面最下部の集計前提（1箇所）
+- `ZoneFrame` — `strikeZoneOnly` 対応
+
+## 戻す場合
+
+git revert または Step1前の `analysisLogic.ts` + 単一 `AnalysisPanel` に復元。

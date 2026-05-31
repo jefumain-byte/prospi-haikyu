@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AnalysisPanel } from './components/AnalysisPanel'
 import { HomeScreen } from './components/HomeScreen'
 import { RecordSetupScreen } from './components/RecordSetupScreen'
 import { RecordScreen } from './components/RecordScreen'
@@ -92,6 +93,7 @@ function App() {
             sessions={data.sessions}
             onBattingFirstChange={setBattingFirst}
             onBrowse={() => setMode('browse')}
+            onAnalysis={() => setMode('analysis')}
             onRecord={() => setMode('record-setup')}
             onResumeSession={handleResumeSession}
             onUpdateSession={handleUpdateSession}
@@ -118,6 +120,10 @@ function App() {
           onResumeSession={handleResumeSession}
           onDeleteSession={handleDeleteSession}
         />
+      )}
+
+      {mode === 'analysis' && (
+        <AnalysisPanel sessions={data.sessions} onBack={() => setMode('home')} />
       )}
 
       {mode === 'record-setup' && (

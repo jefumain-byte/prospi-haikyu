@@ -1,6 +1,10 @@
 import { STORAGE_KEY, getZoneLabel } from './constants'
 import { normalizePitcherName } from './data/pitcherNames'
-import { atBatEnds, getActiveBatterOrder, mapSetupPitchers, resolveBattingSide, resolvePitchSide } from './gameLogic'
+import { atBatEnds, formatInningLabel, getActiveBatterOrder, mapSetupPitchers, resolveBattingSide, resolvePitchSide } from './gameLogic'
+import { applyDoublePlayRunners } from './doublePlayLogic'
+import { applySacrificeBuntRunners, applyBuntBatterOutRunners, isBuntBatterOutOnly, isBuntSacrifice, resolveEffectiveGameResult } from './buntLogic'
+import { isFourBallWalk } from './countLogic'
+import { resolvePitchRunnerAdvances } from './runnerAdvanceLogic'
 import { DEFAULT_SPECIAL_EXTRA_INNING_START } from './specialExtraLogic'
 import { EMPTY_RUNNERS, updateRunners } from './runnerLogic'
 import { applyStealAttempt } from './stealLogic'
@@ -87,11 +91,40 @@ function getAllSessionPitches(session: GameSession): PitchRecord[] {
     .sort((a, b) => a.timestamp - b.timestamp)
 }
 
+export function getSessionPitchesInGameOrder(session: GameSession): PitchRecord[] {
+  return getAllSessionPitches(session).sort((a, b) => {
+    if (a.inning !== b.inning) return a.inning - b.inning
+    if (a.halfInning !== b.halfInning) return a.halfInning === 'top' ? -1 : 1
+    return a.timestamp - b.timestamp
+  })
+}
+
+function halfInningKey(inning: number, halfInning: HalfInning): string {
+  return `${inning}-${halfInning}`
+}
+
+export function groupSessionPitchesByHalfInning(
+  session: GameSession,
+): { key: string; label: string; pitches: PitchRecord[] }[] {
+  const groups: { key: string; label: string; pitches: PitchRecord[] }[] = []
+  for (const pitch of getSessionPitchesInGameOrder(session)) {
+    const key = halfInningKey(pitch.inning, pitch.halfInning)
+    const last = groups[groups.length - 1]
+    if (last?.key === key) {
+      last.pitches.push(pitch)
+      continue
+    }
+    groups.push({
+      key,
+      label: formatInningLabel(pitch.inning, pitch.halfInning),
+      pitches: [pitch],
+    })
+  }
+  return groups
+}
+
 function getEffectivePitchResultForScore(pitch: PitchRecord): PitchRecord['result'] {
-  const primary = pitch.primaryResult ?? pitch.result
-  const extra = pitch.extraResult
-  if (!extra || extra === 'steal') return primary
-  return extra
+  return resolveEffectiveGameResult(pitch.primaryResult ?? pitch.result, pitch.extraResult)
 }
 
 function rebuildSessionScores(session: GameSession): Pick<GameSession, 'selfScore' | 'opponentScore'> {
@@ -106,14 +139,25 @@ function rebuildSessionScores(session: GameSession): Pick<GameSession, 'selfScor
     }
 
     const effectiveResult = getEffectivePitchResultForScore(pitch)
-    const atBatEnded = atBatEnds(effectiveResult, pitch.countBefore)
-    const runnerUpdate = updateRunners(
-      pitch.runnersBefore,
-      effectiveResult,
-      atBatEnded,
-      pitch.outsRecorded,
-      pitch.runnersAdvanced,
-    )
+    const runnerGameResult = isFourBallWalk(pitch.countBefore, pitch.primaryResult ?? pitch.result)
+      ? 'walk'
+      : effectiveResult
+    const atBatEnded = atBatEnds(pitch.primaryResult ?? pitch.result, pitch.countBefore, pitch.extraResult)
+    const runnerUpdate =
+      pitch.primaryResult === 'double_play' || pitch.result === 'double_play'
+        ? applyDoublePlayRunners(pitch.runnersBefore, pitch.outsRecorded, pitch.countBefore.outs)
+        : isBuntSacrifice(pitch.primaryResult ?? pitch.result, pitch.extraResult)
+          ? applySacrificeBuntRunners(pitch.runnersBefore, pitch.outsRecorded)
+          : isBuntBatterOutOnly(pitch.primaryResult ?? pitch.result, pitch.extraResult)
+            ? applyBuntBatterOutRunners(pitch.runnersBefore)
+            : updateRunners(
+                pitch.runnersBefore,
+                runnerGameResult,
+                atBatEnded,
+                pitch.outsRecorded,
+                resolvePitchRunnerAdvances(pitch),
+                pitch.countBefore.outs,
+              )
     let runsScored = runnerUpdate.runsScored
 
     if (pitch.stealAttempt) {

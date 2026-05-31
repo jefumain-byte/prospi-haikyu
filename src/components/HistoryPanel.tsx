@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { formatPitchResultDisplay, getBatterHandLabel, getPitchSideLabel, getPitchTypeLabel, getPitcherArmLabel } from '../constants'
+import { formatPitchResultDisplay, getBatterHandLabel, getPitchResultColorClass, getPitchSideLabel, getPitchTypeLabel, getPitcherArmLabel } from '../constants'
 import { SideFilterToggle, type SideFilter } from './SideFilterToggle'
-import type { PitchRecord, PitchResult } from '../types'
+import type { PitchRecord } from '../types'
 
 interface HistoryPanelProps {
   batterLabel: string
@@ -16,11 +16,8 @@ function formatTime(timestamp: number) {
   })
 }
 
-function resultClass(result: PitchResult): string {
-  if (result === 'ball' || result === 'walk' || result === 'hbp') return 'result-ball'
-  if (['called_strike', 'swinging_strike', 'foul'].includes(result)) return 'result-strike'
-  if (['single', 'double', 'triple', 'homerun'].includes(result)) return 'result-hit'
-  return 'result-out'
+function resultClass(pitch: PitchRecord): string {
+  return getPitchResultColorClass(pitch)
 }
 
 export function HistoryPanel({ batterLabel, pitches, onUndo }: HistoryPanelProps) {
@@ -69,7 +66,7 @@ export function HistoryPanel({ batterLabel, pitches, onUndo }: HistoryPanelProps
       ) : (
         <ul className="history-list">
           {reversed.map((pitch, index) => (
-            <li key={pitch.id} className={`history-item ${resultClass(pitch.result)}`}>
+            <li key={pitch.id} className={`history-item ${resultClass(pitch)}`}>
               <div className="history-index">{filteredPitches.length - index}</div>
               <div className="history-body">
                 <div className="history-top">
@@ -77,7 +74,7 @@ export function HistoryPanel({ batterLabel, pitches, onUndo }: HistoryPanelProps
                     {getPitchSideLabel(pitch.pitchSide)}
                   </span>
                   <strong>{pitch.zoneLabel}</strong>
-                  <span className={`history-badge ${resultClass(pitch.result)}`}>
+                  <span className={`history-badge ${resultClass(pitch)}`}>
                     {formatPitchResultDisplay(pitch)}
                   </span>
                 </div>

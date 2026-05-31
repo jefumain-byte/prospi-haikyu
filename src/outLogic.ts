@@ -27,7 +27,14 @@ export function getAvailableOutTargets(runners: Runners): OutTarget[] {
   return targets
 }
 
-export function requiresOutSelection(runners: Runners, gameResult: PitchResult): boolean {
+export function requiresOutSelection(
+  runners: Runners,
+  gameResult: PitchResult,
+  extraResult?: PitchResult | null,
+  primaryResult?: PitchResult,
+): boolean {
+  const primary = primaryResult ?? gameResult
+  if (extraResult === 'bunt' && (primary === 'flyout' || primary === 'liner')) return false
   if (runnerCount(runners) < 2) return false
   if (gameResult === 'double_play') return true
   return ['groundout', 'flyout', 'liner'].includes(gameResult)
@@ -41,8 +48,10 @@ export function isOutSelectionValid(
   outsRecorded: OutTarget[],
   gameResult: PitchResult,
   runners: Runners,
+  extraResult?: PitchResult | null,
+  primaryResult?: PitchResult,
 ): boolean {
-  if (!requiresOutSelection(runners, gameResult)) return true
+  if (!requiresOutSelection(runners, gameResult, extraResult, primaryResult)) return true
 
   const required = requiredOutSelectionCount(gameResult)
   const available = new Set(getAvailableOutTargets(runners))

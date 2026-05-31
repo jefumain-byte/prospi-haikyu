@@ -9,6 +9,7 @@ import {
   PITCH_RESULTS,
   PITCH_TYPE_GROUPS,
 } from '../constants'
+import { isBuntExtraValid } from '../buntLogic'
 import {
   getAvailableOutTargets,
   getOutTargetLabel,
@@ -18,6 +19,9 @@ import {
 } from '../outLogic'
 import {
   getAvailableRunnerAdvanceBases,
+  getDefaultRunnerAdvances,
+  getDestinationLabel,
+  getDestinationOptions,
   isRunnerAdvanceSelectionValid,
   requiresRunnerAdvanceSelection,
 } from '../runnerAdvanceLogic'
@@ -27,7 +31,17 @@ import {
   isStealAttemptValid,
   isStealSelectionAllowed,
 } from '../stealLogic'
-import type { Handedness, OutTarget, PitchResult, PitchType, Runners, RunnerBase, StealAttempt } from '../types'
+import type {
+  Handedness,
+  OutTarget,
+  PitchResult,
+  PitchType,
+  Runners,
+  RunnerAdvanceRecord,
+  RunnerBase,
+  RunnerDestination,
+  StealAttempt,
+} from '../types'
 
 type FormStep = 'type' | 'result'
 
@@ -36,6 +50,7 @@ interface PitchFormProps {
   inZone: boolean
   runners: Runners
   outs: number
+  balls: number
   batterLabel: string
   batterHand: Handedness
   pitcherArm: Handedness
@@ -44,13 +59,13 @@ interface PitchFormProps {
   extraResult: PitchResult | null
   outsRecorded: OutTarget[]
   stealAttempt: StealAttempt | null
-  runnersAdvanced: RunnerBase[]
+  runnerAdvances: RunnerAdvanceRecord[]
   onPitchTypeChange: (type: PitchType) => void
   onPrimaryResultChange: (result: PitchResult) => void
   onExtraResultChange: (result: PitchResult | null) => void
   onOutsRecordedChange: (outs: OutTarget[]) => void
   onStealAttemptChange: (attempt: StealAttempt | null) => void
-  onRunnersAdvancedChange: (bases: RunnerBase[]) => void
+  onRunnerAdvancesChange: (advances: RunnerAdvanceRecord[]) => void
   onSubmit: () => void
   onCancel: () => void
 }
@@ -71,6 +86,7 @@ export function PitchForm({
   inZone,
   runners,
   outs,
+  balls,
   batterLabel,
   batterHand,
   pitcherArm,
@@ -79,13 +95,13 @@ export function PitchForm({
   extraResult,
   outsRecorded,
   stealAttempt,
-  runnersAdvanced,
+  runnerAdvances,
   onPitchTypeChange,
   onPrimaryResultChange,
   onExtraResultChange,
   onOutsRecordedChange,
   onStealAttemptChange,
-  onRunnersAdvancedChange,
+  onRunnerAdvancesChange,
   onSubmit,
   onCancel,
 }: PitchFormProps) {
@@ -94,37 +110,65 @@ export function PitchForm({
 
   const hasRunners = runners.first || runners.second || runners.third
   const canDoublePlay = hasRunners && outs < 2
-  const gameResult = extraResult && extraResult !== 'steal' ? extraResult : primaryResult
-  const needsOutSelection = requiresOutSelection(runners, gameResult)
+  const isHbpSelected = primaryResult === 'hbp'
+  const gameResult = isHbpSelected
+    ? 'hbp'
+    : extraResult && extraResult !== 'steal' && extraResult !== 'bunt'
+      ? extraResult
+      : primaryResult
+  const needsOutSelection = requiresOutSelection(runners, gameResult, extraResult, primaryResult)
   const requiredOutCount = requiredOutSelectionCount(gameResult)
-  const outSelectionValid = isOutSelectionValid(outsRecorded, gameResult, runners)
+  const outSelectionValid = isOutSelectionValid(outsRecorded, gameResult, runners, extraResult, primaryResult)
   const availableOutTargets = getAvailableOutTargets(runners)
   const occupiedBases = getOccupiedRunnerBases(runners)
   const stealValid = extraResult !== 'steal' || isStealAttemptValid(runners, stealAttempt)
   const stealBases = stealAttempt?.bases ?? []
-  const needsRunnerAdvanceSelection = requiresRunnerAdvanceSelection(runners, outs, gameResult)
+  const buntValid = isBuntExtraValid(primaryResult, extraResult)
+  const needsRunnerAdvanceSelection = requiresRunnerAdvanceSelection(
+    runners,
+    outs,
+    gameResult,
+    extraResult,
+    primaryResult,
+  )
   const availableAdvanceBases = getAvailableRunnerAdvanceBases(runners, outsRecorded)
   const runnerAdvanceValid = isRunnerAdvanceSelectionValid(
     runners,
     outs,
     gameResult,
-    runnersAdvanced,
+    runnerAdvances,
     outsRecorded,
+    extraResult,
+    primaryResult,
   )
 
   useEffect(() => {
     setStep('type')
     onExtraResultChange(null)
     onOutsRecordedChange([])
-    onOutsRecordedChange([])
     onStealAttemptChange(null)
-    onRunnersAdvancedChange([])
-  }, [zoneLabel, onExtraResultChange, onOutsRecordedChange, onStealAttemptChange, onRunnersAdvancedChange])
+    onRunnerAdvancesChange([])
+  }, [zoneLabel, onExtraResultChange, onOutsRecordedChange, onStealAttemptChange, onRunnerAdvancesChange])
 
   useEffect(() => {
     onOutsRecordedChange([])
-    onRunnersAdvancedChange([])
-  }, [primaryResult, extraResult, onOutsRecordedChange, onRunnersAdvancedChange])
+  }, [primaryResult, extraResult, onOutsRecordedChange])
+
+  useEffect(() => {
+    if (!needsRunnerAdvanceSelection) {
+      onRunnerAdvancesChange([])
+      return
+    }
+    onRunnerAdvancesChange(getDefaultRunnerAdvances(runners, gameResult, outsRecorded))
+  }, [
+    needsRunnerAdvanceSelection,
+    runners.first,
+    runners.second,
+    runners.third,
+    gameResult,
+    outsRecorded,
+    onRunnerAdvancesChange,
+  ])
 
   useEffect(() => {
     if (primaryResult === 'double_play' && !canDoublePlay) {
@@ -132,15 +176,23 @@ export function PitchForm({
     }
   }, [canDoublePlay, inZone, onPrimaryResultChange, primaryResult])
 
-  const unavailablePrimary: PitchResult[] = inZone ? ['ball'] : ['called_strike']
+  const unavailablePrimary: PitchResult[] = inZone ? ['ball', 'hbp'] : ['called_strike']
   const normalResults = PITCH_RESULTS.filter(
     (item) =>
       isNormalResultGroup(item.group) &&
       !unavailablePrimary.includes(item.id) &&
-      (item.id !== 'double_play' || canDoublePlay),
+      (item.id !== 'double_play' || canDoublePlay) &&
+      (!isHbpSelected || item.id === 'hbp') &&
+      !(item.id === 'hbp' && primaryResult === 'ball') &&
+      !(item.id === 'ball' && isHbpSelected),
   )
   const extraResults = PITCH_RESULTS.filter(
-    (item) => item.group === PITCH_RESULT_EXTRA_GROUP && (item.id !== 'steal' || hasRunners),
+    (item) =>
+      item.group === PITCH_RESULT_EXTRA_GROUP &&
+      item.id !== 'walk' &&
+      item.id !== 'error' &&
+      (item.id !== 'steal' || hasRunners) &&
+      !isHbpSelected,
   )
   const normalGroups = [...new Set(normalResults.map((item) => item.group))]
 
@@ -152,9 +204,10 @@ export function PitchForm({
     primaryResult,
     extraResult: extraResult ?? undefined,
     stealAttempt: stealAttempt ?? undefined,
-    runnersAdvanced: runnersAdvanced.length ? runnersAdvanced : undefined,
+    runnerAdvances: runnerAdvances.length ? runnerAdvances : undefined,
     outsRecorded: outsRecorded.length ? outsRecorded : undefined,
     batterOrder,
+    countBefore: { balls, strikes: 0, outs },
   })
 
   const groupIndexForType = useMemo(
@@ -173,10 +226,30 @@ export function PitchForm({
   }
 
   const handlePrimarySelect = (id: PitchResult) => {
+    if (isHbpSelected && id !== 'hbp') return
+    if (primaryResult === 'hbp' && id !== 'hbp') return
+    if (id === 'ball' && primaryResult === 'ball') {
+      onPrimaryResultChange('swinging_strike')
+      return
+    }
+    if (id === 'hbp') {
+      if (primaryResult === 'hbp') {
+        onPrimaryResultChange('swinging_strike')
+        return
+      }
+      if (primaryResult === 'ball') return
+      onExtraResultChange(null)
+      onStealAttemptChange(null)
+      onOutsRecordedChange([])
+      onRunnerAdvancesChange([])
+      onPrimaryResultChange('hbp')
+      return
+    }
     onPrimaryResultChange(id)
   }
 
   const handleExtraSelect = (id: PitchResult) => {
+    if (isHbpSelected) return
     if (extraResult === id) {
       onExtraResultChange(null)
       onStealAttemptChange(null)
@@ -219,12 +292,13 @@ export function PitchForm({
     onStealAttemptChange({ ...stealAttempt, outBase: base })
   }
 
-  const handleRunnerAdvanceToggle = (base: RunnerBase) => {
-    if (runnersAdvanced.includes(base)) {
-      onRunnersAdvancedChange(runnersAdvanced.filter((item) => item !== base))
+  const handleRunnerDestinationChange = (from: RunnerBase, to: RunnerDestination) => {
+    const existing = runnerAdvances.find((entry) => entry.from === from)
+    if (existing) {
+      onRunnerAdvancesChange(runnerAdvances.map((entry) => (entry.from === from ? { from, to } : entry)))
       return
     }
-    onRunnersAdvancedChange([...runnersAdvanced, base])
+    onRunnerAdvancesChange([...runnerAdvances, { from, to }])
   }
 
   const handleOutTargetToggle = (target: OutTarget) => {
@@ -240,8 +314,6 @@ export function PitchForm({
     }
 
     onOutsRecordedChange(nextOuts)
-    const available = new Set(getAvailableRunnerAdvanceBases(runners, nextOuts))
-    onRunnersAdvancedChange(runnersAdvanced.filter((base) => available.has(base)))
   }
 
   return (
@@ -341,6 +413,7 @@ export function PitchForm({
               ))}
             </section>
 
+            {!isHbpSelected && (
             <section className="result-section result-section-optional" aria-label="その他の結果">
               <div className="result-section-head">
                 <div className="result-subgroup-label">その他</div>
@@ -369,6 +442,10 @@ export function PitchForm({
                 >
                   その他を解除
                 </button>
+              )}
+
+              {extraResult === 'bunt' && !buntValid && (
+                <p className="steal-error">バントはファウルまたはゴロ・フライ・ライナーと組み合わせてください</p>
               )}
 
               {extraResult === 'steal' && (
@@ -429,6 +506,7 @@ export function PitchForm({
                 </section>
               )}
             </section>
+            )}
 
             {needsOutSelection && (
               <section className="result-section result-section-required out-target-section" aria-label="アウトの走者">
@@ -462,21 +540,30 @@ export function PitchForm({
               <section className="result-section result-section-optional advance-section" aria-label="走者の進塁">
                 <div className="result-section-head">
                   <div className="result-subgroup-label">進塁</div>
-                  <span className="result-section-badge optional">任意</span>
+                  <span className="result-section-badge optional">必須</span>
                 </div>
-                <p className="out-target-note">1塁進んだ走者（複数可・未選択は進塁なし）</p>
-                <div className="out-target-grid">
-                  {availableAdvanceBases.map((base) => (
-                    <button
-                      key={base}
-                      type="button"
-                      className={`out-target-btn ${runnersAdvanced.includes(base) ? 'active' : ''}`}
-                      onClick={() => handleRunnerAdvanceToggle(base)}
-                    >
-                      {getRunnerBaseLabel(base)}
-                    </button>
-                  ))}
-                </div>
+                <p className="out-target-note">各走者が何塁まで進んだか選んでください</p>
+                {availableAdvanceBases.map((base) => {
+                  const current = runnerAdvances.find((entry) => entry.from === base)
+                  const options = getDestinationOptions(base)
+                  return (
+                    <div key={base} className="runner-advance-row">
+                      <span className="runner-advance-label">{getRunnerBaseLabel(base)}</span>
+                      <div className="out-target-grid runner-advance-options">
+                        {options.map((dest) => (
+                          <button
+                            key={dest}
+                            type="button"
+                            className={`out-target-btn ${current?.to === dest ? 'active' : ''}`}
+                            onClick={() => handleRunnerDestinationChange(base, dest)}
+                          >
+                            {getDestinationLabel(dest)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
               </section>
             )}
           </div>
@@ -500,6 +587,7 @@ export function PitchForm({
             !primaryResult ||
             (needsOutSelection && !outSelectionValid) ||
             !stealValid ||
+            !buntValid ||
             !runnerAdvanceValid
           }
           onClick={onSubmit}

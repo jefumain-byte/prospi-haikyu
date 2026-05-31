@@ -16,8 +16,17 @@ export type PitchResult =
   | 'bunt'
   | 'error'
   | 'steal'
+  | 'batter_interference'
+  | 'runner_interference'
 
 export type RunnerBase = 'first' | 'second' | 'third'
+
+export type RunnerDestination = 'first' | 'second' | 'third' | 'home'
+
+export interface RunnerAdvanceRecord {
+  from: RunnerBase
+  to: RunnerDestination
+}
 
 export type StealOutcome = 'success' | 'failed'
 
@@ -90,7 +99,7 @@ export type HalfInning = 'top' | 'bottom'
 /** アウトになった走者・打者 */
 export type OutTarget = 'batter' | 'first' | 'second' | 'third'
 
-export type AppMode = 'home' | 'browse' | 'record-setup' | 'record'
+export type AppMode = 'home' | 'browse' | 'analysis' | 'record-setup' | 'record'
 
 export interface PitchRecord {
   id: string
@@ -119,8 +128,10 @@ export interface PitchRecord {
   holdBatterOrderAfterHalf?: boolean
   /** アウトになった走者・打者（複数塁走者時など） */
   outsRecorded?: OutTarget[]
-  /** 打球アウト時に1塁進んだ走者 */
+  /** 打球アウト時に1塁進んだ走者（旧形式・互換用） */
   runnersAdvanced?: RunnerBase[]
+  /** 走者の進塁先 */
+  runnerAdvances?: RunnerAdvanceRecord[]
   /** この球で入った得点（0 のとき省略可） */
   runsScored?: number
   /** 得点した打撃側（自分 / 敵） */

@@ -2,6 +2,8 @@ import { formatOutTargetsSuffix } from './outLogic'
 import { formatRunnerAdvanceSuffix } from './runnerAdvanceLogic'
 import { formatStealAttemptDisplay } from './stealLogic'
 import type { Handedness, PitchRecord, PitchResult, PitchSide, PitchType, ZoneCell, BattingFirst } from './types'
+import { isFourBallWalk } from './countLogic'
+import { isThreeBuntFailure } from './buntLogic'
 
 export const STORAGE_KEY = 'prospi-haikyu-data-v4'
 export const SYNC_ID_KEY = 'prospi-sync-id-v1'
@@ -101,6 +103,7 @@ export const PITCH_RESULTS: { id: PitchResult; label: string; group: string }[] 
   { id: 'called_strike', label: '見逃し', group: '判定' },
   { id: 'swinging_strike', label: '空振り', group: '判定' },
   { id: 'foul', label: 'ファウル', group: '判定' },
+  { id: 'hbp', label: '死球', group: '判定' },
   { id: 'groundout', label: 'ゴロアウト', group: '打球' },
   { id: 'flyout', label: 'フライアウト', group: '打球' },
   { id: 'liner', label: 'ライナー', group: '打球' },
@@ -109,12 +112,16 @@ export const PITCH_RESULTS: { id: PitchResult; label: string; group: string }[] 
   { id: 'double', label: '二塁打', group: '打球' },
   { id: 'triple', label: '三塁打', group: '打球' },
   { id: 'homerun', label: 'ホームラン', group: '打球' },
-  { id: 'walk', label: '四球', group: 'その他' },
-  { id: 'hbp', label: '死球', group: 'その他' },
   { id: 'bunt', label: 'バント', group: 'その他' },
-  { id: 'error', label: 'エラー', group: 'その他' },
   { id: 'steal', label: '盗塁', group: 'その他' },
 ]
+
+const LEGACY_PITCH_RESULT_LABELS: Partial<Record<PitchResult, string>> = {
+  walk: '四球',
+  error: 'エラー',
+  batter_interference: '打撃妨害',
+  runner_interference: '走塁妨害',
+}
 
 export const ZONE_GRID: ZoneCell[][] = [
   [
@@ -175,11 +182,29 @@ export function getPitchTypeLabel(id: PitchType): string {
 }
 
 export function getPitchResultLabel(id: PitchResult): string {
-  return PITCH_RESULTS.find((r) => r.id === id)?.label ?? id
+  return PITCH_RESULTS.find((r) => r.id === id)?.label ?? LEGACY_PITCH_RESULT_LABELS[id] ?? id
 }
 
 export function getEffectivePitchResult(pitch: Pick<PitchRecord, 'result' | 'primaryResult' | 'extraResult'>): PitchResult {
-  return pitch.extraResult ?? pitch.primaryResult ?? pitch.result
+  const primary = pitch.primaryResult ?? pitch.result
+  const extra = pitch.extraResult
+  if (!extra || extra === 'steal' || extra === 'bunt') return primary
+  return extra
+}
+
+export function getPitchResultColorClass(
+  pitch: Pick<PitchRecord, 'result' | 'primaryResult' | 'extraResult' | 'countBefore'>,
+): string {
+  if (isThreeBuntFailure(pitch)) return 'result-strike'
+  return getPitchResultColorClassByResult(pitch.result)
+}
+
+export function getPitchResultColorClassByResult(result: PitchResult): string {
+  if (result === 'ball' || result === 'walk' || result === 'hbp') return 'result-ball'
+  if (result === 'batter_interference' || result === 'runner_interference') return 'result-ball'
+  if (['called_strike', 'swinging_strike', 'foul'].includes(result)) return 'result-strike'
+  if (['single', 'double', 'triple', 'homerun'].includes(result)) return 'result-hit'
+  return 'result-out'
 }
 
 export function formatPitchResultDisplay(
@@ -190,18 +215,24 @@ export function formatPitchResultDisplay(
     | 'extraResult'
     | 'outsRecorded'
     | 'runnersAdvanced'
+    | 'runnerAdvances'
     | 'batterOrder'
     | 'stealAttempt'
+    | 'countBefore'
   >,
 ): string {
   const primary = pitch.primaryResult ?? pitch.result
   const extra = pitch.extraResult
   const batterLabel = `${pitch.batterOrder}番`
   const outSuffix = formatOutTargetsSuffix(pitch.outsRecorded, batterLabel)
-  const advanceSuffix = formatRunnerAdvanceSuffix(pitch.runnersAdvanced)
+  const advanceSuffix = formatRunnerAdvanceSuffix(pitch.runnerAdvances, pitch.runnersAdvanced)
 
   let base: string
-  if (extra === 'steal' && pitch.stealAttempt) {
+  if (isThreeBuntFailure(pitch)) {
+    base = 'スリーバント失敗'
+  } else if (pitch.countBefore && isFourBallWalk(pitch.countBefore, primary)) {
+    base = getPitchResultLabel('walk')
+  } else if (extra === 'steal' && pitch.stealAttempt) {
     base = `${getPitchResultLabel(primary)} · ${formatStealAttemptDisplay(pitch.stealAttempt)}`
   } else if (extra) {
     base = `${getPitchResultLabel(primary)} · ${getPitchResultLabel(extra)}`

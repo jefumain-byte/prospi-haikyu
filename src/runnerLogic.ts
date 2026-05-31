@@ -1,6 +1,11 @@
-import type { OutTarget, PitchResult, Runners, RunnerBase } from './types'
+import type { OutTarget, PitchResult, Runners, RunnerAdvanceRecord } from './types'
+import { applyDoublePlayRunners } from './doublePlayLogic'
 import { applyOutTargets } from './outLogic'
-import { applyRunnerAdvances } from './runnerAdvanceLogic'
+import {
+  applyRunnerAdvanceRecords,
+  getBatterDestinationForHit,
+  getDefaultRunnerAdvances,
+} from './runnerAdvanceLogic'
 
 export const EMPTY_RUNNERS: Runners = { first: false, second: false, third: false }
 
@@ -31,26 +36,22 @@ function forceWalk(runners: Runners): RunnerUpdate {
 }
 
 function hitAdvance(runners: Runners, bases: number): RunnerUpdate {
-  const next: Runners = { first: false, second: false, third: false }
-  let runsScored = 0
+  const advances = getDefaultRunnerAdvances(runners, bases === 1 ? 'single' : bases === 2 ? 'double' : 'triple')
+  const batterTo = getBatterDestinationForHit(bases === 1 ? 'single' : bases === 2 ? 'double' : 'triple')
+  return applyRunnerAdvanceRecords(runners, advances, batterTo)
+}
 
-  const advanceExisting = (fromBase: 1 | 2 | 3) => {
-    const dest = fromBase + bases
-    if (dest === 1) next.first = true
-    else if (dest === 2) next.second = true
-    else if (dest === 3) next.third = true
-    else runsScored += 1
-  }
-
-  if (runners.first) advanceExisting(1)
-  if (runners.second) advanceExisting(2)
-  if (runners.third) advanceExisting(3)
-
-  if (bases === 1) next.first = true
-  else if (bases === 2) next.second = true
-  else if (bases === 3) next.third = true
-
-  return { runners: next, runsScored }
+function applyOutWithRunnerAdvances(
+  runners: Runners,
+  outsRecorded: OutTarget[] | undefined,
+  runnerAdvances: RunnerAdvanceRecord[] | undefined,
+  gameResult: PitchResult,
+): RunnerUpdate {
+  const afterOuts = outsRecorded?.length ? applyOutTargets(runners, outsRecorded) : cloneRunners(runners)
+  const records = runnerAdvances?.length
+    ? runnerAdvances
+    : getDefaultRunnerAdvances(runners, gameResult, outsRecorded)
+  return applyRunnerAdvanceRecords(afterOuts, records)
 }
 
 export function updateRunners(
@@ -58,13 +59,11 @@ export function updateRunners(
   result: PitchResult,
   atBatEnded: boolean,
   outsRecorded?: OutTarget[],
-  runnersAdvanced?: RunnerBase[],
+  runnerAdvances?: RunnerAdvanceRecord[],
+  outsBefore = 0,
 ): RunnerUpdate {
   if (result === 'double_play') {
-    const next = outsRecorded?.length
-      ? applyOutTargets(runners, outsRecorded)
-      : { ...runners, first: false }
-    return { runners: next, runsScored: 0 }
+    return applyDoublePlayRunners(runners, outsRecorded, outsBefore)
   }
 
   if (!atBatEnded) {
@@ -76,25 +75,22 @@ export function updateRunners(
     case 'hbp':
       return forceWalk(runners)
     case 'single':
-    case 'bunt':
+    case 'double':
+    case 'triple': {
+      const batterTo = getBatterDestinationForHit(result)
+      const records = runnerAdvances?.length
+        ? runnerAdvances
+        : getDefaultRunnerAdvances(runners, result, outsRecorded)
+      return applyRunnerAdvanceRecords(runners, records, batterTo)
+    }
     case 'error':
       return hitAdvance(runners, 1)
-    case 'double':
-      return hitAdvance(runners, 2)
-    case 'triple':
-      return hitAdvance(runners, 3)
     case 'homerun':
       return { runners: { ...EMPTY_RUNNERS }, runsScored: 1 + runnerCount(runners) }
     case 'groundout':
     case 'flyout':
-    case 'liner': {
-      let next = outsRecorded?.length ? applyOutTargets(runners, outsRecorded) : cloneRunners(runners)
-      if (runnersAdvanced?.length) {
-        const advanced = applyRunnerAdvances(next, runnersAdvanced)
-        return { runners: advanced.runners, runsScored: advanced.runsScored }
-      }
-      return { runners: next, runsScored: 0 }
-    }
+    case 'liner':
+      return applyOutWithRunnerAdvances(runners, outsRecorded, runnerAdvances, result)
     default:
       return { runners: cloneRunners(runners), runsScored: 0 }
   }

@@ -6,7 +6,9 @@ import { StrikeZone } from './StrikeZone'
 import { advanceGameState, formatInningLabel, getActiveBatterOrder, getCurrentPitcherName, resolvePitchSide } from '../gameLogic'
 import { getZoneLabel, isInStrikeZone } from '../constants'
 import { formatGameLabel, getActiveBatter, getLastSessionPitch, getSessionPitchCount } from '../storage'
-import type { AppData, GameSession, Handedness, OutTarget, PitchRecord, PitchResult, PitchSide, PitchType, RunnerBase, StealAttempt } from '../types'
+import type { AppData, GameSession, Handedness, OutTarget, PitchRecord, PitchResult, PitchSide, PitchType, RunnerAdvanceRecord, StealAttempt } from '../types'
+import { isFourBallWalk } from '../countLogic'
+import { isBuntExtraValid } from '../buntLogic'
 import { isOutSelectionValid } from '../outLogic'
 import { isRunnerAdvanceSelectionValid, requiresRunnerAdvanceSelection } from '../runnerAdvanceLogic'
 import { isStealAttemptValid } from '../stealLogic'
@@ -33,7 +35,7 @@ export function RecordScreen({ data, sessionId, onChange, onBack, onFinishGame }
   const [extraResult, setExtraResult] = useState<PitchResult | null>(null)
   const [outsRecorded, setOutsRecorded] = useState<OutTarget[]>([])
   const [stealAttempt, setStealAttempt] = useState<StealAttempt | null>(null)
-  const [runnersAdvanced, setRunnersAdvanced] = useState<RunnerBase[]>([])
+  const [runnerAdvances, setRunnerAdvances] = useState<RunnerAdvanceRecord[]>([])
   const [pitcherArm, setPitcherArm] = useState<Handedness>(session?.currentPitcherArm ?? 'right')
 
   useEffect(() => {
@@ -42,8 +44,18 @@ export function RecordScreen({ data, sessionId, onChange, onBack, onFinishGame }
     setExtraResult(null)
     setOutsRecorded([])
     setStealAttempt(null)
-    setRunnersAdvanced([])
+    setRunnerAdvances([])
   }, [session?.inning, session?.halfInning, activeBatterOrder])
+
+  useEffect(() => {
+    const open = selectedRow !== null && selectedCol !== null
+    if (!open) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prevOverflow
+    }
+  }, [selectedRow, selectedCol])
 
   const atBatPitches = useMemo(() => {
     if (!session || !activeBatter) return []
@@ -91,7 +103,7 @@ export function RecordScreen({ data, sessionId, onChange, onBack, onFinishGame }
     setExtraResult(null)
     setOutsRecorded([])
     setStealAttempt(null)
-    setRunnersAdvanced([])
+    setRunnerAdvances([])
   }
 
   const handleZoneSelect = (row: number, col: number) => {
@@ -100,11 +112,11 @@ export function RecordScreen({ data, sessionId, onChange, onBack, onFinishGame }
     setExtraResult(null)
     setOutsRecorded([])
     setStealAttempt(null)
-    setRunnersAdvanced([])
+    setRunnerAdvances([])
     if (isInStrikeZone(row, col)) {
-      setPrimaryResult((prev) => (prev === 'ball' ? 'called_strike' : prev))
+      setPrimaryResult((prev) => (prev === 'ball' || prev === 'hbp' ? 'called_strike' : prev))
     } else {
-      setPrimaryResult((prev) => (prev === 'called_strike' ? 'ball' : prev))
+      setPrimaryResult((prev) => (prev === 'called_strike' || prev === 'hbp' ? 'swinging_strike' : prev))
     }
   }
 
@@ -116,21 +128,31 @@ export function RecordScreen({ data, sessionId, onChange, onBack, onFinishGame }
     const selfScoreBefore = session.selfScore
     const opponentScoreBefore = session.opponentScore
     const currentPitchSide = resolvePitchSide(session.battingFirst, session.halfInning)
-    const outCheckResult = extraResult && extraResult !== 'steal' ? extraResult : primaryResult
+    const outCheckResult =
+      extraResult && extraResult !== 'steal' && extraResult !== 'bunt' ? extraResult : primaryResult
     const stealForSubmit = extraResult === 'steal' ? stealAttempt : null
     const outsForSubmit = outsRecorded.length ? outsRecorded : undefined
-    const advanceForSubmit = requiresRunnerAdvanceSelection(runnersBefore, countBefore.outs, outCheckResult)
-      ? runnersAdvanced
+    const advanceForSubmit = requiresRunnerAdvanceSelection(
+      runnersBefore,
+      countBefore.outs,
+      outCheckResult,
+      extraResult,
+      primaryResult,
+    )
+      ? runnerAdvances
       : undefined
-    if (!isOutSelectionValid(outsRecorded, outCheckResult, runnersBefore)) return
+    if (!isOutSelectionValid(outsRecorded, outCheckResult, runnersBefore, extraResult, primaryResult)) return
     if (extraResult === 'steal' && !isStealAttemptValid(runnersBefore, stealForSubmit)) return
+    if (!isBuntExtraValid(primaryResult, extraResult)) return
     if (
       !isRunnerAdvanceSelectionValid(
         runnersBefore,
         countBefore.outs,
         outCheckResult,
-        runnersAdvanced,
+        runnerAdvances,
         outsForSubmit,
+        extraResult,
+        primaryResult,
       )
     ) {
       return
@@ -146,7 +168,11 @@ export function RecordScreen({ data, sessionId, onChange, onBack, onFinishGame }
       advanceForSubmit?.length ? advanceForSubmit : undefined,
     )
 
-    const effectiveResult = extraResult && extraResult !== 'steal' ? extraResult : primaryResult
+    const effectiveResult = isFourBallWalk(countBefore, primaryResult)
+      ? 'walk'
+      : extraResult && extraResult !== 'steal' && extraResult !== 'bunt'
+        ? extraResult
+        : primaryResult
 
     const record: PitchRecord = {
       id: crypto.randomUUID(),
@@ -161,7 +187,7 @@ export function RecordScreen({ data, sessionId, onChange, onBack, onFinishGame }
       ...(stealForSubmit ? { stealAttempt: stealForSubmit } : {}),
       ...(holdBatterOrderAfterHalf ? { holdBatterOrderAfterHalf: true } : {}),
       ...(outsForSubmit ? { outsRecorded: outsForSubmit } : {}),
-      ...(advanceForSubmit?.length ? { runnersAdvanced: advanceForSubmit } : {}),
+      ...(advanceForSubmit?.length ? { runnerAdvances: advanceForSubmit } : {}),
       countBefore,
       runnersBefore,
       pitchSide: currentPitchSide,
@@ -311,31 +337,7 @@ export function RecordScreen({ data, sessionId, onChange, onBack, onFinishGame }
           onSelect={handleZoneSelect}
         />
 
-        {zoneSelected ? (
-          <PitchForm
-            zoneLabel={getZoneLabel(selectedRow, selectedCol)}
-            inZone={isInStrikeZone(selectedRow, selectedCol)}
-            runners={session.runners}
-            outs={count.outs}
-            batterLabel={batterLabel}
-            batterHand={batterHand}
-            pitcherArm={pitcherArm}
-            pitchType={pitchType}
-            primaryResult={primaryResult}
-            extraResult={extraResult}
-            outsRecorded={outsRecorded}
-            stealAttempt={stealAttempt}
-            runnersAdvanced={runnersAdvanced}
-            onPitchTypeChange={setPitchType}
-            onPrimaryResultChange={setPrimaryResult}
-            onExtraResultChange={setExtraResult}
-            onOutsRecordedChange={setOutsRecorded}
-            onStealAttemptChange={setStealAttempt}
-            onRunnersAdvancedChange={setRunnersAdvanced}
-            onSubmit={handleSubmitPitch}
-            onCancel={clearSelection}
-          />
-        ) : (
+        {!zoneSelected && (
           <div className="record-placeholder panel-card">
             <p>ストライクゾーンのマスをタップ</p>
             <p className="record-placeholder-sub">球種 → 結果 → 記録する</p>
@@ -344,6 +346,35 @@ export function RecordScreen({ data, sessionId, onChange, onBack, onFinishGame }
 
         <p className="record-footnote">この打席 {atBatPitches.length}球 · 試合 {gamePitchCount}球</p>
       </main>
+
+      {zoneSelected && (
+        <div className="record-pitch-overlay" role="dialog" aria-modal="true" aria-label="配球記録">
+          <PitchForm
+            zoneLabel={getZoneLabel(selectedRow, selectedCol)}
+            inZone={isInStrikeZone(selectedRow, selectedCol)}
+            runners={session.runners}
+            outs={count.outs}
+            balls={count.balls}
+            batterLabel={batterLabel}
+            batterHand={batterHand}
+            pitcherArm={pitcherArm}
+            pitchType={pitchType}
+            primaryResult={primaryResult}
+            extraResult={extraResult}
+            outsRecorded={outsRecorded}
+            stealAttempt={stealAttempt}
+            runnerAdvances={runnerAdvances}
+            onPitchTypeChange={setPitchType}
+            onPrimaryResultChange={setPrimaryResult}
+            onExtraResultChange={setExtraResult}
+            onOutsRecordedChange={setOutsRecorded}
+            onStealAttemptChange={setStealAttempt}
+            onRunnerAdvancesChange={setRunnerAdvances}
+            onSubmit={handleSubmitPitch}
+            onCancel={clearSelection}
+          />
+        </div>
+      )}
 
       <footer className="record-finish panel-card">
         <button type="button" className="ghost-btn record-finish-btn" onClick={handleFinishGame}>

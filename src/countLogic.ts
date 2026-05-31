@@ -1,5 +1,9 @@
 import type { Count, PitchResult } from './types'
 
+export function isFourBallWalk(countBefore: Count, primaryResult: PitchResult): boolean {
+  return primaryResult === 'ball' && countBefore.balls >= 3
+}
+
 export function updateCount(count: Count, result: PitchResult): Count {
   const { balls, strikes, outs } = count
 
@@ -31,7 +35,6 @@ export function updateCount(count: Count, result: PitchResult): Count {
     case 'double':
     case 'triple':
     case 'homerun':
-    case 'bunt':
     case 'error':
       return { balls: 0, strikes: 0, outs }
     default:
