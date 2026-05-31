@@ -18,6 +18,9 @@ export function isCloudSyncEnabled(): boolean {
   return client !== null
 }
 
+/** ログイン中の自動クラウドバックアップ間隔（3分） */
+export const AUTO_CLOUD_BACKUP_INTERVAL_MS = 3 * 60 * 1000
+
 interface SyncRow {
   sync_id: string
   payload: AppData

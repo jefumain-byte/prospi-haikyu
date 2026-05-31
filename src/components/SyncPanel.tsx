@@ -71,7 +71,8 @@ export function SyncPanel({
       </div>
 
       <p className="sync-hint">
-        記録は<strong>常にこの端末</strong>に保存されます。ログインすると同じIDの端末とクラウドで同期できます。
+        記録は<strong>常にこの端末</strong>に保存されます。ログインすると同じIDの端末とクラウドで同期でき、
+        <strong>3分ごと</strong>に自動バックアップされます（変更がない場合は送信を省略）。
       </p>
 
       {loggedInUser ? (

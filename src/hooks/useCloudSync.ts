@@ -9,6 +9,7 @@ import {
   verifyLogin,
 } from '../auth/syncAuth'
 import {
+  AUTO_CLOUD_BACKUP_INTERVAL_MS,
   isCloudSyncEnabled,
   pullCloudData,
   pushCloudData,
@@ -24,6 +25,14 @@ function ensureSession(data: AppData): AppData {
   return data
 }
 
+function runWhenIdle(task: () => void, timeoutMs = 3000) {
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(task, { timeout: timeoutMs })
+    return
+  }
+  window.setTimeout(task, 0)
+}
+
 export function useCloudSync() {
   const [data, setData] = useState<AppData>({ sessions: [], activeSessionId: null })
   const [ready, setReady] = useState(false)
@@ -33,8 +42,41 @@ export function useCloudSync() {
 
   const skipPush = useRef(false)
   const pushTimer = useRef<number | undefined>(undefined)
+  const pushInFlightRef = useRef(false)
+  const lastPushedUpdatedAtRef = useRef<number | null>(null)
 
   const cloudKey = loggedInUser ? getActiveCloudKey() : null
+
+  const markPushed = useCallback((payload: AppData) => {
+    lastPushedUpdatedAtRef.current = payload.updatedAt ?? null
+  }, [])
+
+  const performCloudPush = useCallback(
+    async (payload: AppData, options?: { showStatus?: boolean; force?: boolean }) => {
+      if (!cloudKey || !isCloudSyncEnabled()) return false
+      if (document.visibilityState !== 'visible') return false
+      if (pushInFlightRef.current) return false
+
+      const updatedAt = payload.updatedAt ?? 0
+      if (!options?.force && lastPushedUpdatedAtRef.current === updatedAt) return false
+
+      pushInFlightRef.current = true
+      if (options?.showStatus) setSyncStatus('syncing')
+
+      try {
+        await pushCloudData(cloudKey, payload)
+        markPushed(payload)
+        if (options?.showStatus) setSyncStatus('synced')
+        return true
+      } catch {
+        if (options?.showStatus) setSyncStatus('error')
+        return false
+      } finally {
+        pushInFlightRef.current = false
+      }
+    },
+    [cloudKey, markPushed],
+  )
 
   const pullAndMerge = useCallback(async (key: string, base?: AppData) => {
     const local = base ?? loadLocalAppData()
@@ -44,9 +86,10 @@ export function useCloudSync() {
     merged = stampData(merged)
     saveLocalAppData(merged)
     skipPush.current = true
+    markPushed(merged)
     setData(merged)
     return merged
-  }, [])
+  }, [markPushed])
 
   useEffect(() => {
     let cancelled = false
@@ -90,11 +133,12 @@ export function useCloudSync() {
       setData((current) => {
         const merged = mergeAppData(current, remote)
         saveLocalAppData(merged)
+        markPushed(merged)
         return merged
       })
       setSyncStatus('synced')
     })
-  }, [ready, cloudKey])
+  }, [ready, cloudKey, markPushed])
 
   useEffect(() => {
     if (!ready || !cloudKey) return
@@ -121,21 +165,38 @@ export function useCloudSync() {
 
     if (skipPush.current) {
       skipPush.current = false
+      markPushed(stamped)
       return
     }
 
     if (!cloudKey || !isCloudSyncEnabled()) return
 
     window.clearTimeout(pushTimer.current)
-    setSyncStatus('syncing')
     pushTimer.current = window.setTimeout(() => {
-      void pushCloudData(cloudKey, stamped)
-        .then(() => setSyncStatus('synced'))
-        .catch(() => setSyncStatus('error'))
+      runWhenIdle(() => {
+        void performCloudPush(stamped)
+      })
     }, 700)
 
     return () => window.clearTimeout(pushTimer.current)
-  }, [data, ready, cloudKey])
+  }, [data, ready, cloudKey, performCloudPush, markPushed])
+
+  useEffect(() => {
+    if (!ready || !cloudKey || !isCloudSyncEnabled()) return
+
+    const runAutoBackup = () => {
+      if (document.visibilityState !== 'visible') return
+
+      runWhenIdle(() => {
+        const local = loadLocalAppData()
+        void performCloudPush(local)
+      }, 5000)
+    }
+
+    runAutoBackup()
+    const intervalId = window.setInterval(runAutoBackup, AUTO_CLOUD_BACKUP_INTERVAL_MS)
+    return () => window.clearInterval(intervalId)
+  }, [ready, cloudKey, performCloudPush])
 
   const login = useCallback(
     async (userId: string, password: string) => {
@@ -159,7 +220,9 @@ export function useCloudSync() {
       try {
         const key = getCloudKeyForUser(userId)
         await pullAndMerge(key)
-        await pushCloudData(key, stampData(loadLocalAppData()))
+        const stamped = stampData(loadLocalAppData())
+        await pushCloudData(key, stamped)
+        markPushed(stamped)
         setSyncStatus('synced')
         setAuthMessage('ログインしました。クラウドと同期中です')
       } catch {
@@ -170,12 +233,13 @@ export function useCloudSync() {
       window.setTimeout(() => setAuthMessage(''), 2500)
       return true
     },
-    [pullAndMerge],
+    [pullAndMerge, markPushed],
   )
 
   const logout = useCallback(() => {
     clearSessionUser()
     setLoggedInUser(null)
+    lastPushedUpdatedAtRef.current = null
     setSyncStatus('local')
     setAuthMessage('ログアウトしました（この端末の記録は残ります）')
     window.setTimeout(() => setAuthMessage(''), 2500)
@@ -183,19 +247,17 @@ export function useCloudSync() {
 
   const uploadNow = useCallback(async () => {
     if (!cloudKey) return
-    try {
-      setSyncStatus('syncing')
-      const stamped = stampData(data)
-      await pushCloudData(cloudKey, stamped)
-      saveLocalAppData(stamped)
-      setSyncStatus('synced')
+    const stamped = stampData(data)
+    saveLocalAppData(stamped)
+    const ok = await performCloudPush(stamped, { showStatus: true, force: true })
+    if (ok) {
       setAuthMessage('クラウドに送信しました')
-    } catch {
+    } else if (!pushInFlightRef.current) {
       setSyncStatus('error')
       setAuthMessage('送信に失敗しました')
     }
     window.setTimeout(() => setAuthMessage(''), 2500)
-  }, [cloudKey, data])
+  }, [cloudKey, data, performCloudPush])
 
   const downloadNow = useCallback(async () => {
     if (!cloudKey) return
