@@ -1,4 +1,6 @@
+import { computeAdvancedAnalysis, type AdvancedAnalysisResult } from './advancedAnalysisLogic'
 import { computeBattingAnalysis, type BattingAnalysisResult, type ZoneStat } from './battingAnalysisLogic'
+import { computeGameAnalysis, type GameAnalysisResult } from './gameAnalysisLogic'
 import { computePitchTypeAnalysis, type PitchTypeAnalysisResult } from './pitchTypeAnalysisLogic'
 import { computePitchingAnalysis, type PitchingAnalysisResult } from './pitchingAnalysisLogic'
 import { computeSplitAnalysis, type SplitAnalysisResult } from './splitAnalysisLogic'
@@ -6,7 +8,9 @@ import { getSessionPitchCount, getSessionUpdatedAt } from './storage'
 import { formatInningsPitched, formatWinRate, zoneHeatLevel } from './statsFormat'
 import type { GameSession } from './types'
 
+export type { AdvancedAnalysisResult } from './advancedAnalysisLogic'
 export type { BattingAnalysisResult, ZoneStat } from './battingAnalysisLogic'
+export type { GameAnalysisResult, GameAnalysisRow, TrendSeries } from './gameAnalysisLogic'
 export type { PitchingAnalysisResult, ZoneAgainstStat } from './pitchingAnalysisLogic'
 export type { PitchTypeAnalysisResult, PitchTypeGroupStat, PitchTypeSideAnalysis, PitchTypeStat } from './pitchTypeAnalysisLogic'
 export type { SplitAnalysisResult, SplitGroup, SplitStatLine } from './splitAnalysisLogic'
@@ -31,6 +35,8 @@ export interface SelfAnalysisSnapshot {
   pitching: PitchingAnalysisResult
   pitchTypes: PitchTypeAnalysisResult
   splits: SplitAnalysisResult
+  games: GameAnalysisResult
+  advanced: AdvancedAnalysisResult
 }
 
 export function getAnalysisSessions(sessions: GameSession[], limit?: number): GameSession[] {
@@ -62,6 +68,8 @@ export function computeSelfAnalysis(sessions: GameSession[]): SelfAnalysisSnapsh
   const pitching = computePitchingAnalysis(sessions)
   const pitchTypes = computePitchTypeAnalysis(sessions)
   const splits = computeSplitAnalysis(sessions)
+  const games = computeGameAnalysis(sessions)
+  const advanced = computeAdvancedAnalysis(sessions)
 
   return {
     header: {
@@ -75,6 +83,8 @@ export function computeSelfAnalysis(sessions: GameSession[]): SelfAnalysisSnapsh
     pitching,
     pitchTypes,
     splits,
+    games,
+    advanced,
   }
 }
 

@@ -16,6 +16,7 @@ function App() {
   const [mode, setMode] = useState<AppMode>('home')
   const [battingFirst, setBattingFirst] = useState<BattingFirst>('opponent')
   const [recordingSessionId, setRecordingSessionId] = useState<string | null>(null)
+  const [browseSessionId, setBrowseSessionId] = useState<string | null>(null)
 
   const handleStartRecording = (
     battingFirstPitcher: string,
@@ -116,14 +117,25 @@ function App() {
       {mode === 'browse' && (
         <RecordsPanel
           sessions={data.sessions}
-          onBack={() => setMode('home')}
+          initialSelectedSessionId={browseSessionId}
+          onBack={() => {
+            setBrowseSessionId(null)
+            setMode('home')
+          }}
           onResumeSession={handleResumeSession}
           onDeleteSession={handleDeleteSession}
         />
       )}
 
       {mode === 'analysis' && (
-        <AnalysisPanel sessions={data.sessions} onBack={() => setMode('home')} />
+        <AnalysisPanel
+          sessions={data.sessions}
+          onBack={() => setMode('home')}
+          onOpenSession={(sessionId) => {
+            setBrowseSessionId(sessionId)
+            setMode('browse')
+          }}
+        />
       )}
 
       {mode === 'record-setup' && (

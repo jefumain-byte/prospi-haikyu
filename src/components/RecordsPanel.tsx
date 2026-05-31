@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   formatPitchResultDisplay,
   getPitchResultColorClass,
@@ -25,6 +25,7 @@ interface RecordsPanelProps {
   onBack: () => void
   onResumeSession: (sessionId: string) => void
   onDeleteSession: (sessionId: string) => void
+  initialSelectedSessionId?: string | null
 }
 
 function formatTime(timestamp: number) {
@@ -158,12 +159,24 @@ function GameFlowList({ session }: { session: GameSession }) {
   )
 }
 
-export function RecordsPanel({ sessions, onBack, onResumeSession, onDeleteSession }: RecordsPanelProps) {
+export function RecordsPanel({
+  sessions,
+  onBack,
+  onResumeSession,
+  onDeleteSession,
+  initialSelectedSessionId = null,
+}: RecordsPanelProps) {
   const sortedSessions = useMemo(
     () => [...sessions].sort((a, b) => getSessionUpdatedAt(b) - getSessionUpdatedAt(a)),
     [sessions],
   )
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(initialSelectedSessionId)
+
+  useEffect(() => {
+    if (initialSelectedSessionId) {
+      setSelectedSessionId(initialSelectedSessionId)
+    }
+  }, [initialSelectedSessionId])
 
   const selectedSession = useMemo(
     () => sortedSessions.find((session) => session.id === selectedSessionId) ?? null,

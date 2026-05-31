@@ -3135,23 +3135,176 @@
 
 .analysis-section-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
 }
 
 .analysis-section-tab {
-  padding: 10px 8px;
+  padding: 10px 4px;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: inherit;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 800;
   text-align: center;
 }
 
 .analysis-section-tab.active {
   border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
+}
+
+.analysis-trend-lead {
+  margin: 0 0 12px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.analysis-sparkline-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.analysis-sparkline {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.analysis-sparkline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.analysis-sparkline-head strong {
+  font-size: 0.82rem;
+}
+
+.analysis-sparkline-latest {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.analysis-sparkline-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.analysis-sparkline-line {
+  stroke: rgba(251, 191, 36, 0.85);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.analysis-sparkline-dot {
+  fill: #fde68a;
+  stroke: rgba(251, 191, 36, 0.9);
+  stroke-width: 1;
+}
+
+.analysis-sparkline-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.analysis-sparkline-empty {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.analysis-game-list-section {
+  padding: 14px;
+}
+
+.analysis-game-table-wrap {
+  margin-top: 10px;
+  overflow-x: auto;
+}
+
+.analysis-game-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.analysis-game-table th,
+.analysis-game-table td {
+  padding: 8px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.analysis-game-table th {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--text-dim);
+}
+
+.analysis-game-table td:nth-child(n + 3),
+.analysis-game-table th:nth-child(n + 3) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.analysis-game-link {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #fde68a;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.analysis-game-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.analysis-game-result {
+  display: inline-block;
+  min-width: 2.5em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.analysis-game-result.result-win {
+  background: rgba(52, 211, 153, 0.15);
+  color: #6ee7b7;
+}
+
+.analysis-game-result.result-loss {
+  background: rgba(248, 113, 113, 0.15);
+  color: #fca5a5;
+}
+
+.analysis-game-result.result-draw {
+  background: rgba(96, 165, 250, 0.15);
+  color: #93c5fd;
+}
+
+.analysis-game-result.result-ongoing {
   background: rgba(251, 191, 36, 0.12);
   color: #fde68a;
 }

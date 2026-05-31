@@ -6,28 +6,33 @@ import { AnalysisBattingTab } from './analysis/AnalysisBattingTab'
 import { AnalysisOverviewTab } from './analysis/AnalysisOverviewTab'
 import { AnalysisPitchingTab } from './analysis/AnalysisPitchingTab'
 import { AnalysisPitchTypeTab } from './analysis/AnalysisPitchTypeTab'
+import { AnalysisTrendTab } from './analysis/AnalysisTrendTab'
 
 interface AnalysisPanelProps {
   sessions: GameSession[]
   onBack: () => void
+  onOpenSession?: (sessionId: string) => void
 }
 
 type AnalysisRange = 'all' | 'recent30'
-type AnalysisTab = 'overview' | 'batting' | 'pitching' | 'pitchTypes'
+type AnalysisTab = 'overview' | 'batting' | 'pitching' | 'pitchTypes' | 'trends'
 
 const ANALYSIS_TABS: { id: AnalysisTab; label: string }[] = [
   { id: 'overview', label: '概要' },
   { id: 'batting', label: '打撃' },
   { id: 'pitching', label: '投球' },
   { id: 'pitchTypes', label: '配球' },
+  { id: 'trends', label: '推移' },
 ]
 
 function AnalysisTabPanel({
   tab,
   snapshot,
+  onOpenSession,
 }: {
   tab: AnalysisTab
   snapshot: SelfAnalysisSnapshot
+  onOpenSession?: (sessionId: string) => void
 }) {
   switch (tab) {
     case 'overview':
@@ -38,10 +43,12 @@ function AnalysisTabPanel({
       return <AnalysisPitchingTab snapshot={snapshot} />
     case 'pitchTypes':
       return <AnalysisPitchTypeTab snapshot={snapshot} />
+    case 'trends':
+      return <AnalysisTrendTab snapshot={snapshot} onOpenSession={onOpenSession} />
   }
 }
 
-export function AnalysisPanel({ sessions, onBack }: AnalysisPanelProps) {
+export function AnalysisPanel({ sessions, onBack, onOpenSession }: AnalysisPanelProps) {
   const [range, setRange] = useState<AnalysisRange>('all')
   const [tab, setTab] = useState<AnalysisTab>('overview')
 
@@ -117,7 +124,7 @@ export function AnalysisPanel({ sessions, onBack }: AnalysisPanelProps) {
           </div>
 
           <div className="analysis-tab-panel" role="tabpanel">
-            <AnalysisTabPanel tab={tab} snapshot={snapshot} />
+            <AnalysisTabPanel tab={tab} snapshot={snapshot} onOpenSession={onOpenSession} />
           </div>
 
           <AnalysisAssumptions />

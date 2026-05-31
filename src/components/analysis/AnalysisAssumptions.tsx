@@ -60,6 +60,16 @@ export function AnalysisAssumptions() {
         </section>
 
         <section>
+          <h3>推移・詳細指標（Phase 3）</h3>
+          <ul>
+            <li>グラフは直近20試合・古い順に左から表示（期間タブの対象内）</li>
+            <li>初球ストライク率は自分の投球の0-0カウント全体</li>
+            <li>追い込み率は2ストライク以上を経た相手打席の割合</li>
+            <li>盗塁成功率は自分の攻撃中の盗塁試行のみ</li>
+          </ul>
+        </section>
+
+        <section>
           <h3>状況別分析（Phase 2）</h3>
           <ul>
             <li>打席終了球のカウント・走者状況・左右の組み合わせで集計</li>
