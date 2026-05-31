@@ -2812,6 +2812,44 @@
   margin-bottom: 14px;
 }
 
+.records-game-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.records-summary-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.records-summary-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+
+.records-summary-grid {
+  gap: 8px;
+}
+
+.records-summary-empty {
+  margin: 0 0 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--border);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
 .records-game-flow {
   display: flex;
   flex-direction: column;
@@ -2845,6 +2883,273 @@
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-dim);
+}
+
+.records-flow-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+}
+
+.records-flow-toolbar-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.records-flow-toggle {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.records-flow-toggle.active {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(52, 211, 153, 0.12);
+  color: #86efac;
+}
+
+.records-inning-block {
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.records-inning-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.records-inning-summary::-webkit-details-marker {
+  display: none;
+}
+
+.records-inning-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #eef6ff;
+}
+
+.records-inning-meta {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.records-inning-block[open] .records-atbat-list {
+  padding: 0 10px 12px;
+}
+
+.records-pitch-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-left: 3px solid var(--border);
+}
+
+.records-pitch-row.result-ball {
+  border-left-color: var(--blue);
+}
+
+.records-pitch-row.result-strike {
+  border-left-color: var(--amber);
+}
+
+.records-pitch-row.result-hit {
+  border-left-color: var(--green);
+}
+
+.records-pitch-row.result-out {
+  border-left-color: var(--red);
+}
+
+.records-pitch-row-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.records-pitch-zone {
+  font-size: 0.86rem;
+  color: #eef6ff;
+}
+
+.records-pitch-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.records-pitch-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.records-pitch-meta-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.records-pitch-row-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+}
+
+.records-score-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-weight: 700;
+}
+
+.records-pitch-time {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.records-atbat-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.records-atbat-compact.result-ball {
+  border-color: rgba(96, 165, 250, 0.45);
+}
+
+.records-atbat-compact.result-strike {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.records-atbat-compact.result-hit {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.records-atbat-compact.result-out {
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.records-detail-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.records-game-result-badge {
+  display: inline-flex;
+  min-width: 1.6em;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.records-game-result-badge.result-win {
+  background: rgba(52, 211, 153, 0.16);
+  color: #86efac;
+}
+
+.records-game-result-badge.result-loss {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+}
+
+.records-game-result-badge.result-draw {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+}
+
+.records-game-result-badge.result-ongoing {
+  background: rgba(96, 165, 250, 0.14);
+  color: #93c5fd;
+}
+
+.records-game-btn-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.records-game-pitchers {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.analysis-browse-link {
+  margin-top: 10px;
+  color: #86efac;
+}
+
+.analysis-browse-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analysis-browse-lead {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.analysis-game-row-clickable {
+  cursor: pointer;
+}
+
+.analysis-game-row-clickable:hover,
+.analysis-game-row-clickable:focus-visible {
+  background: rgba(52, 211, 153, 0.08);
+  outline: none;
+}
+
+.analysis-game-row-clickable .analysis-game-link {
+  color: #86efac;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .records-atbat-list {

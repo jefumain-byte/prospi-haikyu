@@ -1,27 +1,25 @@
 ---
-description: 分析画面リファクタ（Step1-6）のベースライン。戻す際の参照用。
+description: 分析画面リファクタ（Step1-6 + Phase2-3）のベースライン。戻す際の参照用。
 globs: src/analysisLogic.ts,src/*AnalysisLogic.ts,src/statsFormat.ts,src/components/AnalysisPanel.tsx,src/components/analysis/**,src/components/ZoneFrame.tsx
 alwaysApply: false
 ---
 
-# 分析リファクタ ベースライン（2026-05）
+# 分析リファクタ ベースライン
 
-Step 1–6 完了時点。
+## 復元タグ
 
-## 構成
+| タグ | 内容 |
+|------|------|
+| `pre-phase-2-analysis` | Steps 1–6 のみ（Phase 2 前） |
+| `pre-phase-3-analysis` | Phase 2 完了時点（Phase 3 前） |
 
-- `statsFormat.ts` — フォーマット・`MIN_RATE_SAMPLE=3`・ヒートレベル
-- `battingAnalysisLogic.ts` / `pitchingAnalysisLogic.ts` — ゾーンに `totalBases`/`slugging` 含む
-- `pitchTypeAnalysisLogic.ts` — 球種グループ化（`byGroup`）
-- `analysisLogic.ts` — オーケストレータ
+```powershell
+git checkout pre-phase-3-analysis   # Phase 3 前に戻す
+git reset --hard pre-phase-3-analysis
+```
 
-## UI
+## Phase 3 追加
 
-- 4タブ + ヘッダー統計
-- `ZoneAnalysisMap` — 指標切替・ゾーントグル・n≥3色付け
-- `AnalysisAssumptions` — 画面最下部の集計前提（1箇所）
-- `ZoneFrame` — `strikeZoneOnly` 対応
-
-## 戻す場合
-
-git revert または Step1前の `analysisLogic.ts` + 単一 `AnalysisPanel` に復元。
+- `gameAnalysisLogic.ts` — 試合一覧・推移データ
+- `advancedAnalysisLogic.ts` — 初球ストライク率・追い込み率・盗塁・犠打/犠飛
+- **推移タブ** — スパークライン・試合表・記録閲覧へ遷移

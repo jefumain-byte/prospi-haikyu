@@ -1,24 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  formatPitchResultDisplay,
-  getPitchResultColorClass,
-  getPitchSideLabel,
-  getPitchTypeLabel,
-} from '../constants'
-import { atBatEnds, formatSessionPitchers, formatSessionScore, getSessionProgressLabel } from '../gameLogic'
+import { formatSessionPitchers, formatSessionScore, getSessionProgressLabel } from '../gameLogic'
 import {
   formatGameLabel,
   getSessionPitchCount,
   getSessionUpdatedAt,
-  groupSessionPitchesByHalfInning,
   isSessionFinished,
 } from '../storage'
-import type { GameSession, PitchRecord } from '../types'
-
-interface AtBatGroup {
-  batterOrder: number
-  pitches: PitchRecord[]
-}
+import type { GameSession } from '../types'
+import { GameRecordFlow } from './GameRecordFlow'
+import { GameRecordSummary } from './GameRecordSummary'
 
 interface RecordsPanelProps {
   sessions: GameSession[]
@@ -26,13 +16,8 @@ interface RecordsPanelProps {
   onResumeSession: (sessionId: string) => void
   onDeleteSession: (sessionId: string) => void
   initialSelectedSessionId?: string | null
-}
-
-function formatTime(timestamp: number) {
-  return new Date(timestamp).toLocaleTimeString('ja-JP', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  detailBackLabel?: string
+  onDetailBack?: () => void
 }
 
 function formatDate(timestamp: number) {
@@ -49,114 +34,18 @@ function confirmDeleteSession(session: GameSession): boolean {
   return window.confirm(`「${label}」の記録を削除しますか？\nこの操作は取り消せません。`)
 }
 
-function getBatterLabel(session: GameSession, order: number): string {
-  return session.batters.find((batter) => batter.order === order)?.label ?? `${order}番`
+function gameResultLabel(session: GameSession): string | null {
+  if (session.finishedAt == null) return '記録中'
+  if (session.selfScore > session.opponentScore) return '勝'
+  if (session.selfScore < session.opponentScore) return '敗'
+  return '分'
 }
 
-function pitchEndsAtBat(pitch: PitchRecord): boolean {
-  return atBatEnds(pitch.primaryResult ?? pitch.result, pitch.countBefore, pitch.extraResult)
-}
-
-function groupPitchesIntoAtBats(pitches: PitchRecord[]): AtBatGroup[] {
-  const groups: AtBatGroup[] = []
-  let current: AtBatGroup | null = null
-
-  for (const pitch of pitches) {
-    const prevEnded =
-      current != null &&
-      current.pitches.length > 0 &&
-      pitchEndsAtBat(current.pitches[current.pitches.length - 1]!)
-
-    if (current == null || current.batterOrder !== pitch.batterOrder || prevEnded) {
-      if (current) groups.push(current)
-      current = { batterOrder: pitch.batterOrder, pitches: [pitch] }
-      continue
-    }
-    current.pitches.push(pitch)
-  }
-
-  if (current) groups.push(current)
-  return groups
-}
-
-function atBatFrameClass(pitches: PitchRecord[]): string {
-  const last = pitches[pitches.length - 1]
-  if (!last) return 'result-ongoing'
-  if (!pitchEndsAtBat(last)) return 'result-ongoing'
-  return getPitchResultColorClass(last)
-}
-
-function atBatSummary(pitches: PitchRecord[]): string {
-  const last = pitches[pitches.length - 1]
-  if (!last) return ''
-  if (!pitchEndsAtBat(last)) return `${pitches.length}球 · 打席続行`
-  return formatPitchResultDisplay(last)
-}
-
-function GameFlowList({ session }: { session: GameSession }) {
-  const groups = useMemo(() => groupSessionPitchesByHalfInning(session), [session])
-  const pitchCount = getSessionPitchCount(session)
-
-  if (pitchCount === 0) {
-    return <p className="records-empty">この試合の記録はまだありません</p>
-  }
-
-  return (
-    <div className="records-game-flow">
-      {groups.map((group) => (
-        <section key={group.key} className="records-inning-block">
-          <div className="records-inning-head">
-            <h4>{group.label}</h4>
-            <span className="records-inning-count">{group.pitches.length}球</span>
-          </div>
-          <div className="records-atbat-list">
-            {groupPitchesIntoAtBats(group.pitches).map((atBat, atBatIndex) => {
-              const frameClass = atBatFrameClass(atBat.pitches)
-              return (
-                <article
-                  key={`${group.key}-${atBatIndex}-${atBat.batterOrder}`}
-                  className={`records-atbat-card ${frameClass}`}
-                >
-                  <header className="records-atbat-head">
-                    <strong className="records-atbat-batter">{getBatterLabel(session, atBat.batterOrder)}</strong>
-                    <span className="records-atbat-pitch-count">{atBat.pitches.length}球</span>
-                    <span className={`history-badge ${frameClass}`}>{atBatSummary(atBat.pitches)}</span>
-                  </header>
-                  <ul className="records-atbat-pitches">
-                    {atBat.pitches.map((pitch, index) => (
-                      <li key={pitch.id} className={`records-atbat-pitch ${getPitchResultColorClass(pitch)}`}>
-                        <div className="records-atbat-pitch-index">{index + 1}</div>
-                        <div className="history-body">
-                          <div className="history-top">
-                            <span className={`side-badge side-${pitch.pitchSide}`}>{getPitchSideLabel(pitch.pitchSide)}</span>
-                            <strong>{pitch.zoneLabel}</strong>
-                            <span className={`history-badge ${getPitchResultColorClass(pitch)}`}>
-                              {formatPitchResultDisplay(pitch)}
-                            </span>
-                          </div>
-                          <div className="history-bottom">
-                            <span>{getPitchTypeLabel(pitch.pitchType)}</span>
-                            <span>{pitch.pitcherName}</span>
-                            <span className="history-count">
-                              {pitch.countBefore.balls}-{pitch.countBefore.strikes} · {pitch.countBefore.outs}アウト
-                            </span>
-                            {pitch.runsScored != null && pitch.runsScored > 0 ? (
-                              <span className="records-run-badge">+{pitch.runsScored}点</span>
-                            ) : null}
-                            <span>{formatTime(pitch.timestamp)}</span>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              )
-            })}
-          </div>
-        </section>
-      ))}
-    </div>
-  )
+function gameResultClass(label: string | null): string {
+  if (label === '勝') return 'win'
+  if (label === '敗') return 'loss'
+  if (label === '分') return 'draw'
+  return 'ongoing'
 }
 
 export function RecordsPanel({
@@ -165,6 +54,8 @@ export function RecordsPanel({
   onResumeSession,
   onDeleteSession,
   initialSelectedSessionId = null,
+  detailBackLabel,
+  onDetailBack,
 }: RecordsPanelProps) {
   const sortedSessions = useMemo(
     () => [...sessions].sort((a, b) => getSessionUpdatedAt(b) - getSessionUpdatedAt(a)),
@@ -187,19 +78,29 @@ export function RecordsPanel({
     if (!confirmDeleteSession(session)) return
     onDeleteSession(session.id)
     if (selectedSessionId === session.id) {
-      setSelectedSessionId(null)
+      if (onDetailBack) onDetailBack()
+      else setSelectedSessionId(null)
     }
+  }
+
+  const handleDetailBack = () => {
+    if (onDetailBack) {
+      onDetailBack()
+      return
+    }
+    setSelectedSessionId(null)
   }
 
   if (selectedSession) {
     const pitchCount = getSessionPitchCount(selectedSession)
     const label = selectedSession.label || formatGameLabel(selectedSession.createdAt)
+    const result = gameResultLabel(selectedSession)
 
     return (
       <div className="flow-screen browse-screen browse-detail-screen">
         <header className="flow-header panel-card">
-          <button type="button" className="ghost-btn compact back-btn" onClick={() => setSelectedSessionId(null)}>
-            ← 試合一覧
+          <button type="button" className="ghost-btn compact back-btn" onClick={handleDetailBack}>
+            {detailBackLabel ?? '← 試合一覧'}
           </button>
           <div>
             <p className="app-kicker">試合の流れ</p>
@@ -208,6 +109,12 @@ export function RecordsPanel({
               {formatSessionPitchers(selectedSession)} · {formatSessionScore(selectedSession)} · {pitchCount}球
               {isSessionFinished(selectedSession) ? ' · 終了' : ` · ${getSessionProgressLabel(selectedSession)}`}
             </p>
+            {result ? (
+              <p className="records-detail-result">
+                <span className={`records-game-result-badge result-${gameResultClass(result)}`}>{result}</span>
+                <span>{formatDate(getSessionUpdatedAt(selectedSession))}</span>
+              </p>
+            ) : null}
           </div>
         </header>
 
@@ -224,7 +131,8 @@ export function RecordsPanel({
               削除
             </button>
           </div>
-          <GameFlowList session={selectedSession} />
+          <GameRecordSummary session={selectedSession} />
+          <GameRecordFlow session={selectedSession} />
         </section>
       </div>
     )
@@ -239,7 +147,7 @@ export function RecordsPanel({
         <div>
           <p className="app-kicker">保存済み</p>
           <h1>記録を閲覧</h1>
-          <p className="records-list-lead">見たい試合を選んでください</p>
+          <p className="records-list-lead">試合を選ぶとイニング別・打席別の詳細が見られます</p>
         </div>
       </header>
 
@@ -255,6 +163,7 @@ export function RecordsPanel({
             {sortedSessions.map((session) => {
               const pitchCount = getSessionPitchCount(session)
               const label = session.label || formatGameLabel(session.createdAt)
+              const result = gameResultLabel(session)
 
               return (
                 <li key={session.id}>
@@ -263,16 +172,20 @@ export function RecordsPanel({
                     className="records-game-btn records-game-select-btn"
                     onClick={() => setSelectedSessionId(session.id)}
                   >
-                    <span className="records-game-label">
-                      {label}
-                      {isSessionFinished(session) ? <span className="records-game-status">終了</span> : null}
-                    </span>
+                    <div className="records-game-btn-head">
+                      <span className="records-game-label">
+                        {label}
+                        {result ? (
+                          <span className={`records-game-result-badge result-${gameResultClass(result)}`}>{result}</span>
+                        ) : null}
+                      </span>
+                      <span className="records-game-open">詳細 →</span>
+                    </div>
                     <span className="records-game-meta">
                       {getSessionProgressLabel(session)} · {pitchCount}球 · {formatSessionScore(session)}
                     </span>
                     <span className="records-game-pitchers">{formatSessionPitchers(session)}</span>
                     <span className="records-game-date">{formatDate(getSessionUpdatedAt(session))}</span>
-                    <span className="records-game-open">詳細を見る →</span>
                   </button>
                 </li>
               )

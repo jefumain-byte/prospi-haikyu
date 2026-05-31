@@ -11,6 +11,7 @@ import { AnalysisTrendTab } from './analysis/AnalysisTrendTab'
 interface AnalysisPanelProps {
   sessions: GameSession[]
   onBack: () => void
+  onBrowseRecords?: () => void
   onOpenSession?: (sessionId: string) => void
 }
 
@@ -28,15 +29,17 @@ const ANALYSIS_TABS: { id: AnalysisTab; label: string }[] = [
 function AnalysisTabPanel({
   tab,
   snapshot,
+  onBrowseRecords,
   onOpenSession,
 }: {
   tab: AnalysisTab
   snapshot: SelfAnalysisSnapshot
+  onBrowseRecords?: () => void
   onOpenSession?: (sessionId: string) => void
 }) {
   switch (tab) {
     case 'overview':
-      return <AnalysisOverviewTab snapshot={snapshot} />
+      return <AnalysisOverviewTab snapshot={snapshot} onBrowseRecords={onBrowseRecords} />
     case 'batting':
       return <AnalysisBattingTab snapshot={snapshot} />
     case 'pitching':
@@ -48,7 +51,7 @@ function AnalysisTabPanel({
   }
 }
 
-export function AnalysisPanel({ sessions, onBack, onOpenSession }: AnalysisPanelProps) {
+export function AnalysisPanel({ sessions, onBack, onBrowseRecords, onOpenSession }: AnalysisPanelProps) {
   const [range, setRange] = useState<AnalysisRange>('all')
   const [tab, setTab] = useState<AnalysisTab>('overview')
 
@@ -73,6 +76,11 @@ export function AnalysisPanel({ sessions, onBack, onOpenSession }: AnalysisPanel
             <p className="analysis-header-stats">
               {snapshot.header.games}試合 · {snapshot.header.plateAppearances}打席 · {snapshot.header.inningsPitched}投球回
             </p>
+          ) : null}
+          {onBrowseRecords ? (
+            <button type="button" className="ghost-btn compact analysis-browse-link" onClick={onBrowseRecords}>
+              記録を閲覧 →
+            </button>
           ) : null}
         </div>
       </header>
@@ -124,7 +132,12 @@ export function AnalysisPanel({ sessions, onBack, onOpenSession }: AnalysisPanel
           </div>
 
           <div className="analysis-tab-panel" role="tabpanel">
-            <AnalysisTabPanel tab={tab} snapshot={snapshot} onOpenSession={onOpenSession} />
+            <AnalysisTabPanel
+              tab={tab}
+              snapshot={snapshot}
+              onBrowseRecords={onBrowseRecords}
+              onOpenSession={onOpenSession}
+            />
           </div>
 
           <AnalysisAssumptions />

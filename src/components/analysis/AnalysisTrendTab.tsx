@@ -75,17 +75,27 @@ export function AnalysisTrendTab({ snapshot, onOpenSession }: AnalysisTrendTabPr
             </thead>
             <tbody>
               {games.games.map((game) => (
-                <tr key={game.sessionId}>
+                <tr
+                  key={game.sessionId}
+                  className={onOpenSession ? 'analysis-game-row-clickable' : undefined}
+                  onClick={onOpenSession ? () => onOpenSession(game.sessionId) : undefined}
+                  onKeyDown={
+                    onOpenSession
+                      ? (event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            onOpenSession(game.sessionId)
+                          }
+                        }
+                      : undefined
+                  }
+                  tabIndex={onOpenSession ? 0 : undefined}
+                  role={onOpenSession ? 'button' : undefined}
+                >
                   <td>{game.dateLabel}</td>
                   <td>
                     {onOpenSession ? (
-                      <button
-                        type="button"
-                        className="analysis-game-link"
-                        onClick={() => onOpenSession(game.sessionId)}
-                      >
-                        {game.label}
-                      </button>
+                      <span className="analysis-game-link">{game.label}</span>
                     ) : (
                       game.label
                     )}

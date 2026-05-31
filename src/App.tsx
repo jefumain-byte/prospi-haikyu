@@ -17,6 +17,25 @@ function App() {
   const [battingFirst, setBattingFirst] = useState<BattingFirst>('opponent')
   const [recordingSessionId, setRecordingSessionId] = useState<string | null>(null)
   const [browseSessionId, setBrowseSessionId] = useState<string | null>(null)
+  const [browseReturnMode, setBrowseReturnMode] = useState<'home' | 'analysis'>('home')
+
+  const openBrowseSession = (sessionId: string, returnMode: 'home' | 'analysis') => {
+    setBrowseSessionId(sessionId)
+    setBrowseReturnMode(returnMode)
+    setMode('browse')
+  }
+
+  const returnFromBrowse = () => {
+    if (browseReturnMode === 'analysis') {
+      setBrowseSessionId(null)
+      setBrowseReturnMode('home')
+      setMode('analysis')
+      return
+    }
+    setBrowseSessionId(null)
+    setBrowseReturnMode('home')
+    setMode('home')
+  }
 
   const handleStartRecording = (
     battingFirstPitcher: string,
@@ -93,7 +112,11 @@ function App() {
             battingFirst={battingFirst}
             sessions={data.sessions}
             onBattingFirstChange={setBattingFirst}
-            onBrowse={() => setMode('browse')}
+            onBrowse={() => {
+              setBrowseSessionId(null)
+              setBrowseReturnMode('home')
+              setMode('browse')
+            }}
             onAnalysis={() => setMode('analysis')}
             onRecord={() => setMode('record-setup')}
             onResumeSession={handleResumeSession}
@@ -118,10 +141,11 @@ function App() {
         <RecordsPanel
           sessions={data.sessions}
           initialSelectedSessionId={browseSessionId}
-          onBack={() => {
-            setBrowseSessionId(null)
-            setMode('home')
-          }}
+          detailBackLabel={browseReturnMode === 'analysis' && browseSessionId ? '← 分析に戻る' : undefined}
+          onDetailBack={
+            browseReturnMode === 'analysis' && browseSessionId ? returnFromBrowse : undefined
+          }
+          onBack={returnFromBrowse}
           onResumeSession={handleResumeSession}
           onDeleteSession={handleDeleteSession}
         />
@@ -131,10 +155,12 @@ function App() {
         <AnalysisPanel
           sessions={data.sessions}
           onBack={() => setMode('home')}
-          onOpenSession={(sessionId) => {
-            setBrowseSessionId(sessionId)
+          onBrowseRecords={() => {
+            setBrowseSessionId(null)
+            setBrowseReturnMode('analysis')
             setMode('browse')
           }}
+          onOpenSession={(sessionId) => openBrowseSession(sessionId, 'analysis')}
         />
       )}
 

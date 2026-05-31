@@ -1,7 +1,12 @@
 import type { SelfAnalysisSnapshot } from '../../analysisLogic'
 import { AnalysisStatCard } from './AnalysisStatCard'
 
-export function AnalysisOverviewTab({ snapshot }: { snapshot: SelfAnalysisSnapshot }) {
+interface AnalysisOverviewTabProps {
+  snapshot: SelfAnalysisSnapshot
+  onBrowseRecords?: () => void
+}
+
+export function AnalysisOverviewTab({ snapshot, onBrowseRecords }: AnalysisOverviewTabProps) {
   const { batting, pitching, win } = snapshot
 
   return (
@@ -29,6 +34,16 @@ export function AnalysisOverviewTab({ snapshot }: { snapshot: SelfAnalysisSnapsh
           />
         </div>
       </section>
+
+      {onBrowseRecords ? (
+        <section className="panel-card analysis-summary analysis-browse-card">
+          <h2 className="analysis-section-title">試合記録</h2>
+          <p className="analysis-browse-lead">イニング別・打席別の詳細を確認できます</p>
+          <button type="button" className="primary-btn compact" onClick={onBrowseRecords}>
+            記録を閲覧
+          </button>
+        </section>
+      ) : null}
     </>
   )
 }
